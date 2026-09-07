@@ -725,7 +725,7 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
                       {modulosActivos.length > 0 ? (
                         modulosActivos.map((m) => (
                           <option key={m.id} value={m.nombre}>
-                            {m.nombre} ({m.zona})
+                            {m.nombre} ({m.zonaJuarez || 'Cd. Juárez'})
                           </option>
                         ))
                       ) : (
@@ -744,11 +744,16 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
                       className="px-4 py-3 bg-white border-2 border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none"
                     >
                       {puestosActivos.length > 0 ? (
-                        puestosActivos.map((p) => (
-                          <option key={p.id} value={p.titulo}>
-                            {p.titulo} (${p.sueldoSugeridoSemanalNeto.toLocaleString('es-MX')} /sem)
-                          </option>
-                        ))
+                        puestosActivos.map((p) => {
+                          const sueldoTexto = p.sueldoNumerico
+                            ? `$${Number(p.sueldoNumerico).toLocaleString('es-MX')} /sem`
+                            : p.sueldoSemanalSugerido || ''
+                          return (
+                            <option key={p.id} value={p.titulo}>
+                              {p.titulo} {sueldoTexto ? `(${sueldoTexto})` : ''}
+                            </option>
+                          )
+                        })
                       ) : (
                         <option value={formData.puesto}>{formData.puesto}</option>
                       )}
@@ -765,11 +770,16 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
                       className="px-4 py-3 bg-white border-2 border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none"
                     >
                       {turnosActivos.length > 0 ? (
-                        turnosActivos.map((t) => (
-                          <option key={t.id} value={t.nombre}>
-                            {t.nombre} ({t.horarioEntradaSalida})
-                          </option>
-                        ))
+                        turnosActivos.map((t) => {
+                          const horarioTexto = t.horarioEntrada && t.horarioSalida
+                            ? `${t.horarioEntrada} - ${t.horarioSalida}`
+                            : t.descripcion || ''
+                          return (
+                            <option key={t.id} value={t.nombre}>
+                              {t.nombre} {horarioTexto ? `(${horarioTexto})` : ''}
+                            </option>
+                          )
+                        })
                       ) : (
                         <option value={formData.turno}>{formData.turno}</option>
                       )}

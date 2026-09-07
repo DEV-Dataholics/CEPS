@@ -261,66 +261,37 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
       {/* Campos de Dirección Estructurada */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-extrabold text-slate-900">
-              Calle y Número Exterior / Interior *
-            </label>
-            {verificadoPorIne && valor.calleNumero && (
-              <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md flex items-center gap-1">
-                ✓ Verificado por INE
-              </span>
-            )}
-          </div>
+          <label className="text-xs font-extrabold text-slate-900">
+            Calle y Número Exterior / Interior *
+          </label>
           <input
             type="text"
             required
             placeholder="Ej. Av. De las Torres #1420 Int. 4"
             value={valor.calleNumero}
             onChange={(e) => onChange({ ...valor, calleNumero: e.target.value })}
-            className={`px-3.5 py-2.5 border-2 rounded-xl text-sm font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none ${
-              verificadoPorIne && valor.calleNumero
-                ? 'bg-emerald-50/50 border-emerald-300'
-                : 'bg-white border-slate-300'
-            }`}
+            className="px-3.5 py-2.5 bg-white border-2 border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none"
           />
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-extrabold text-slate-900">
-              Colonia / Fraccionamiento *
-            </label>
-            {verificadoPorIne && valor.colonia && (
-              <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md flex items-center gap-1">
-                ✓ Verificado por INE
-              </span>
-            )}
-          </div>
+          <label className="text-xs font-extrabold text-slate-900">
+            Colonia / Fraccionamiento *
+          </label>
           <input
             type="text"
             required
             placeholder="Ej. Fracc. Praderas del Sol"
             value={valor.colonia}
             onChange={(e) => onChange({ ...valor, colonia: e.target.value })}
-            className={`px-3.5 py-2.5 border-2 rounded-xl text-sm font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none ${
-              verificadoPorIne && valor.colonia
-                ? 'bg-emerald-50/50 border-emerald-300'
-                : 'bg-white border-slate-300'
-            }`}
+            className="px-3.5 py-2.5 bg-white border-2 border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none"
           />
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-extrabold text-slate-900">
-              Código Postal *
-            </label>
-            {verificadoPorIne && valor.codigoPostal && (
-              <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md flex items-center gap-1">
-                ✓ Verificado por INE
-              </span>
-            )}
-          </div>
+          <label className="text-xs font-extrabold text-slate-900">
+            Código Postal *
+          </label>
           <input
             type="text"
             required
@@ -328,11 +299,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
             maxLength={5}
             value={valor.codigoPostal}
             onChange={(e) => onChange({ ...valor, codigoPostal: e.target.value })}
-            className={`px-3.5 py-2.5 border-2 rounded-xl text-sm font-mono font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none ${
-              verificadoPorIne && valor.codigoPostal
-                ? 'bg-emerald-50/50 border-emerald-300'
-                : 'bg-white border-slate-300'
-            }`}
+            className="px-3.5 py-2.5 bg-white border-2 border-slate-300 rounded-xl text-sm font-mono font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none"
           />
         </div>
 

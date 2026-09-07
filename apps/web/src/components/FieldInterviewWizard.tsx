@@ -545,7 +545,7 @@ export const FieldInterviewWizard: React.FC<FieldInterviewWizardProps> = ({
                   >
                     {modulosActivos.map((m) => (
                       <option key={m.id} value={m.nombre}>
-                        {m.nombre} ({m.zona})
+                        {m.nombre} ({m.zonaJuarez || 'Cd. Juárez'})
                       </option>
                     ))}
                   </select>
