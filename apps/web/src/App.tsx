@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
 import { UiKitDemo } from './pages/UiKitDemo'
 import { CandidateRegistrationView } from './pages/CandidateRegistrationView'
-import { Server, LayoutDashboard, CheckCircle2, AlertCircle, RefreshCw, UserPlus } from 'lucide-react'
+import { VacancyManagerView } from './pages/VacancyManagerView'
+import { Server, LayoutDashboard, CheckCircle2, AlertCircle, RefreshCw, UserPlus, Briefcase } from 'lucide-react'
 import { api, type HealthCheckResponse } from './lib/api'
 
 export default function App() {
-  const [vista, setVista] = useState<'candidato' | 'uikit' | 'diagnostico'>('candidato')
+  const [vista, setVista] = useState<'candidato' | 'vacantes' | 'uikit' | 'diagnostico'>('vacantes')
   const [health, setHealth] = useState<HealthCheckResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -35,6 +36,18 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+          <button
+            onClick={() => setVista('vacantes')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
+              vista === 'vacantes'
+                ? 'bg-[#D4AF37] text-[#0A162B]'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <Briefcase className="w-3.5 h-3.5" />
+            Gestor de Vacantes &amp; Bandeja
+          </button>
+
           <button
             onClick={() => setVista('candidato')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
@@ -76,7 +89,9 @@ export default function App() {
         </div>
       </div>
 
-      {vista === 'candidato' ? (
+      {vista === 'vacantes' ? (
+        <VacancyManagerView />
+      ) : vista === 'candidato' ? (
         <CandidateRegistrationView />
       ) : vista === 'uikit' ? (
         <UiKitDemo />

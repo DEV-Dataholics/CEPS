@@ -23,6 +23,7 @@ import {
 import { LocationPicker } from '../components/LocationPicker'
 import { generateCepsReceiptPdf } from '../lib/generateCepsReceiptPdf'
 import { useCandidateStore } from '../store/candidateStore'
+import { useVacancyStore } from '../store/vacancyStore'
 
 export const CandidateRegistrationView: React.FC = () => {
   const {
@@ -131,6 +132,28 @@ export const CandidateRegistrationView: React.FC = () => {
           hour: '2-digit',
           minute: '2-digit',
         }),
+        documentosAdjuntos: docsAdjuntos,
+      })
+
+      // Registrar reactivamente en la bandeja de entrada del Administrador de Vacantes
+      useVacancyStore.getState().registrarAspiranteDesdePortal({
+        folio: nuevoFolio,
+        nombre: formData.nombre,
+        apellidoPaterno: formData.apellidoPaterno,
+        apellidoMaterno: formData.apellidoMaterno,
+        telefono: formData.telefono,
+        edad: formData.edad,
+        curp: formData.curp,
+        rfc: formData.rfc,
+        puestoDeseado: formData.puesto,
+        moduloAbordaje: formData.modulo,
+        fechaCaptura: 'hoy',
+        fechaEtiqueta: `Hoy, ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
+        colonia: formData.domicilio.colonia,
+        zonaJuarez: formData.domicilio.colonia,
+        latitud: formData.domicilio.latitud,
+        longitud: formData.domicilio.longitud,
+        estatus: 'nuevo',
         documentosAdjuntos: docsAdjuntos,
       })
     }, 1200)
