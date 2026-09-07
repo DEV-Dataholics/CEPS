@@ -393,7 +393,7 @@ export const FieldInterviewWizard: React.FC<FieldInterviewWizardProps> = ({
         </div>
 
         {/* Stepper Táctil Superior (5 Pasos) */}
-        <div className="bg-white px-4 sm:px-6 py-3 border-b-2 border-slate-300 flex items-center justify-between gap-1 sm:gap-2 overflow-x-auto">
+        <div className="bg-white px-4 sm:px-6 py-3 border-b-2 border-slate-300 flex items-center justify-between gap-1 sm:gap-2 overflow-x-auto no-scrollbar">
           {[
             { num: 1, label: '1. Recepción', icon: UserCheck },
             { num: 2, label: '2. Razonamiento', icon: Brain },

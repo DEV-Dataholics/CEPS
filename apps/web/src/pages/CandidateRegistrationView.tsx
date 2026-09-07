@@ -310,7 +310,7 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
                 className="bg-[#D4AF37] h-1.5 transition-all duration-300"
                 style={{ width: `${(pasoActual / 5) * 100}%` }}
               ></div>
-              <div className="px-3 sm:px-6 py-2.5 flex items-center justify-between overflow-x-auto gap-2 text-xs">
+              <div className="px-3 sm:px-6 py-2.5 flex items-center justify-between overflow-x-auto no-scrollbar gap-2 text-xs">
                 {pasosNombres.map((nombre, idx) => {
                   const num = idx + 1
                   const activo = pasoActual === num

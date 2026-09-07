@@ -177,7 +177,7 @@ export const GuardDossiersView: React.FC = () => {
             </div>
 
             {/* Pestañas de Estado (Cejillas estilo archivero) */}
-            <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[11px] font-bold">
+            <div className="flex flex-wrap items-center gap-1 pb-1 text-[11px] font-bold">
               {[
                 { id: 'todos', label: 'Todos' },
                 { id: 'aprobado_servicio', label: 'Aptos' },
@@ -355,7 +355,7 @@ export const GuardDossiersView: React.FC = () => {
                 </div>
 
                 {/* Sub-navegación por Pestañas del Dossier */}
-                <div className="flex items-center gap-2 mt-6 overflow-x-auto border-t border-slate-700/80 pt-3">
+                <div className="flex flex-wrap items-center gap-2 mt-5 border-t border-slate-700/80 pt-3">
                   {[
                     { id: 'caratula', label: 'Carátula & Identidad', icon: User },
                     { id: 'razonamiento', label: 'Examen Razonamiento (VER5)', icon: Brain },
@@ -370,7 +370,7 @@ export const GuardDossiersView: React.FC = () => {
                       <button
                         key={tab.id}
                         onClick={() => setPestañaExpediente(tab.id as typeof pestañaExpediente)}
-                        className={`px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap ${
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                           activo
                             ? 'bg-[#D4AF37] text-[#0A162B] font-black shadow-md'
                             : 'text-slate-300 hover:text-white hover:bg-slate-800'
