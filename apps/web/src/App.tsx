@@ -40,7 +40,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#EDF2F7] flex flex-row font-sans text-slate-900 overflow-x-hidden">
+    <div className="h-screen h-[100dvh] w-screen max-h-screen bg-[#EDF2F7] flex flex-row font-sans text-slate-900 overflow-hidden">
       {/* Sidebar Lateral Colapsable con Gobernanza RBAC */}
       <AppSidebar
         vistaActual={vistaEfectiva}
@@ -53,7 +53,7 @@ export default function App() {
       />
 
       {/* Área Principal de Contenido */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Cabecera Superior Ejecutiva y Limpia */}
         <AppHeader vistaActual={vistaEfectiva} />
 

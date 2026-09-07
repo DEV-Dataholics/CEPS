@@ -7,12 +7,18 @@ import {
   candidateStep3Schema,
   candidateStep5Schema,
 } from '../schemas/candidateSchema'
+import type { ExtractedCurpData } from '../lib/mexicanIdParser'
 
 export interface CandidateStoreState {
   pasoActual: number
   formData: CandidateFormData
   folioAsignado: string | null
   guardando: boolean
+
+  // Estado de Escaneo Oficial de Abordaje
+  mostrarGateEscaneo: boolean
+  curpVerificada: boolean
+  datosExtraidosCurp: ExtractedCurpData | null
 
   // Acciones
   setPaso: (paso: number) => void
@@ -27,6 +33,12 @@ export interface CandidateStoreState {
   setFolioAsignado: (folio: string | null) => void
   reiniciarBorrador: () => void
   cargarDatosDemo: () => void
+
+  // Acciones de Escáner
+  setDatosExtraidosCurp: (datos: ExtractedCurpData | null) => void
+  confirmarAbordajeEscaneo: (datos: ExtractedCurpData) => void
+  activarReescaneo: () => void
+  setMostrarGateEscaneo: (mostrar: boolean) => void
 
   // Validaciones Zod por paso
   validarPaso1: () => { valido: boolean; errores: Record<string, string> }
@@ -109,9 +121,39 @@ export const useCandidateStore = create<CandidateStoreState>()(
       folioAsignado: null,
       guardando: false,
 
+      // Estado de Escaneo Oficial de Abordaje
+      mostrarGateEscaneo: true,
+      curpVerificada: false,
+      datosExtraidosCurp: null,
+
       setPaso: (paso) => set({ pasoActual: paso }),
       siguientePaso: () => set((state) => ({ pasoActual: Math.min(state.pasoActual + 1, 6) })),
       anteriorPaso: () => set((state) => ({ pasoActual: Math.max(state.pasoActual - 1, 1) })),
+
+      // Acciones de Escáner
+      setDatosExtraidosCurp: (datos) => set({ datosExtraidosCurp: datos }),
+
+      confirmarAbordajeEscaneo: (datos) =>
+        set((state) => ({
+          curpVerificada: true,
+          datosExtraidosCurp: datos,
+          mostrarGateEscaneo: false,
+          pasoActual: 1,
+          formData: {
+            ...state.formData,
+            curp: datos.curp,
+            edad: String(datos.edad),
+            sexo: datos.sexo,
+            rfc:
+              datos.rfcCompleto ||
+              (state.formData.rfc && state.formData.rfc.startsWith(datos.rfcBase)
+                ? state.formData.rfc
+                : datos.rfcBase),
+          },
+        })),
+
+      activarReescaneo: () => set({ mostrarGateEscaneo: true }),
+      setMostrarGateEscaneo: (mostrar) => set({ mostrarGateEscaneo: mostrar }),
 
       actualizarPaso1: (datos) =>
         set((state) => ({
@@ -161,6 +203,9 @@ export const useCandidateStore = create<CandidateStoreState>()(
           formData: { ...formularioVacio },
           folioAsignado: null,
           guardando: false,
+          mostrarGateEscaneo: true,
+          curpVerificada: false,
+          datosExtraidosCurp: null,
         })
       },
 
@@ -170,6 +215,20 @@ export const useCandidateStore = create<CandidateStoreState>()(
           formData: { ...datosDemo },
           folioAsignado: null,
           guardando: false,
+          mostrarGateEscaneo: false,
+          curpVerificada: true,
+          datosExtraidosCurp: {
+            curp: datosDemo.curp,
+            esValida: true,
+            fechaNacimiento: '14/05/1992',
+            fechaIso: '1992-05-14',
+            edad: 34,
+            sexo: 'Masculino',
+            claveEntidad: 'CH',
+            nombreEntidad: 'Chihuahua',
+            rfcBase: 'MECJ920514',
+            rfcCompleto: datosDemo.rfc,
+          },
         }),
 
       validarPaso1: () => {
@@ -223,6 +282,9 @@ export const useCandidateStore = create<CandidateStoreState>()(
         pasoActual: state.pasoActual,
         formData: state.formData,
         folioAsignado: state.folioAsignado,
+        mostrarGateEscaneo: state.mostrarGateEscaneo,
+        curpVerificada: state.curpVerificada,
+        datosExtraidosCurp: state.datosExtraidosCurp,
       }),
     }
   )

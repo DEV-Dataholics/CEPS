@@ -20,12 +20,14 @@ import {
   Trash2,
   X,
   Search,
+  QrCode,
 } from 'lucide-react'
 import { LocationPicker } from '../components/LocationPicker'
 import { generateCepsReceiptPdf } from '../lib/generateCepsReceiptPdf'
 import { useCandidateStore } from '../store/candidateStore'
 import { useVacancyStore } from '../store/vacancyStore'
 import { useCatalogStore } from '../store/catalogStore'
+import { DocumentScannerGate } from '../components/DocumentScannerGate'
 
 interface CandidateRegistrationViewProps {
   onConsultarEstatus?: (folio: string) => void
@@ -39,6 +41,11 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
     formData,
     folioAsignado,
     guardando,
+    mostrarGateEscaneo,
+    curpVerificada,
+    datosExtraidosCurp,
+    confirmarAbordajeEscaneo,
+    activarReescaneo,
     setPaso,
     siguientePaso,
     anteriorPaso,
@@ -186,17 +193,36 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
     'Revisión Final',
   ]
 
+  // Si la estación de escaneo está activa y no se ha emitido el folio final
+  if (mostrarGateEscaneo && !folioAsignado) {
+    return (
+      <div className="w-full flex-1 flex flex-col overflow-y-auto bg-slate-900">
+        <DocumentScannerGate
+          onConfirmar={(datos) => {
+            confirmarAbordajeEscaneo(datos)
+            setToastMensaje('Identidad oficial verificada y precargada exitosamente.')
+            setTimeout(() => setToastMensaje(null), 3500)
+          }}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="w-full flex-1 flex flex-col font-sans">
       {/* HEADER INSTITUCIONAL EXCLUSIVO CON LOGO SOBRE AZUL PROFUNDO */}
       <header className="bg-[#0A162B] text-white py-3.5 px-4 sm:px-6 border-b-2 border-slate-800 shadow-md sticky top-0 z-30">
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="bg-[#060E1C] px-3 py-1.5 rounded-xl border border-slate-700/90 shadow-inner flex items-center justify-center">
+            <div className="w-10 h-10 rounded-2xl bg-[#0A162B] border-2 border-[#D4AF37] flex items-center justify-center text-white font-extrabold text-base shadow-lg overflow-hidden flex-shrink-0">
               <img
                 src="/ceps-logo.png"
-                alt="CEPS Paso del Norte"
-                className="h-9 sm:h-10 w-auto object-contain"
+                alt="CEPS"
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none'
+                  e.currentTarget.parentElement!.innerText = 'CEPS'
+                }}
               />
             </div>
             <div>
@@ -210,6 +236,17 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Botón para regresar a la Estación de Escáner */}
+            <button
+              type="button"
+              onClick={activarReescaneo}
+              title="Volver a la estación de escaneo de CURP/RFC"
+              className="px-2.5 py-1.5 text-xs text-[#0A162B] bg-[#D4AF37] hover:bg-amber-400 rounded-lg transition flex items-center gap-1.5 font-black shadow-sm"
+            >
+              <QrCode className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Re-escanear Documento</span>
+            </button>
+
             <button
               type="button"
               onClick={() => {
@@ -392,6 +429,33 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
               {/* PASO 1 */}
               {pasoActual === 1 && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Banner de Verificación de Escáner */}
+                  {curpVerificada && datosExtraidosCurp && (
+                    <div className="sm:col-span-2 bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-100 border border-emerald-300 flex items-center justify-center flex-shrink-0 text-emerald-700">
+                          <CheckCircle2 className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <span className="font-black text-emerald-950 text-xs block">
+                            Identidad Oficial Verificada por Escáner
+                          </span>
+                          <span className="text-emerald-800 text-[11px] font-semibold">
+                            CURP: {datosExtraidosCurp.curp} &bull; Nacimiento: {datosExtraidosCurp.fechaNacimiento} ({datosExtraidosCurp.nombreEntidad}) &bull; {datosExtraidosCurp.edad} años
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={activarReescaneo}
+                        className="px-3 py-1.5 text-xs font-black bg-white text-emerald-900 border border-emerald-400 rounded-xl hover:bg-emerald-100 transition shadow-xs flex items-center gap-1.5"
+                      >
+                        <QrCode className="w-3.5 h-3.5" />
+                        Re-escanear
+                      </button>
+                    </div>
+                  )}
+
                   <div className="flex flex-col gap-1.5 sm:col-span-2">
                     <label className="text-xs font-extrabold text-slate-900">
                       Nombre(s) *
@@ -452,27 +516,49 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-extrabold text-slate-900">
-                      Edad (Años) *
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-extrabold text-slate-900">
+                        Edad (Años) *
+                      </label>
+                      {curpVerificada && (
+                        <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md">
+                          ✓ Verificado por CURP
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="number"
                       required
                       placeholder="Ej. 34"
                       value={formData.edad}
                       onChange={(e) => actualizarPaso1({ edad: e.target.value })}
-                      className="px-4 py-3 bg-white border-2 border-slate-300 rounded-xl text-sm font-mono font-bold tabular-nums text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none"
+                      className={`px-4 py-3 border-2 rounded-xl text-sm font-mono font-bold tabular-nums text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none ${
+                        curpVerificada
+                          ? 'bg-emerald-50/50 border-emerald-300'
+                          : 'bg-white border-slate-300'
+                      }`}
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-extrabold text-slate-900">
-                      Sexo *
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-extrabold text-slate-900">
+                        Sexo *
+                      </label>
+                      {curpVerificada && (
+                        <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md">
+                          ✓ Verificado por CURP
+                        </span>
+                      )}
+                    </div>
                     <select
                       value={formData.sexo}
                       onChange={(e) => actualizarPaso1({ sexo: e.target.value as 'Masculino' | 'Femenino' | 'Otro' })}
-                      className="px-4 py-3 bg-white border-2 border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none"
+                      className={`px-4 py-3 border-2 rounded-xl text-sm font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none ${
+                        curpVerificada
+                          ? 'bg-emerald-50/50 border-emerald-300'
+                          : 'bg-white border-slate-300'
+                      }`}
                     >
                       <option value="Masculino">Masculino</option>
                       <option value="Femenino">Femenino</option>
@@ -498,9 +584,16 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-extrabold text-slate-900">
-                      CURP (18 Caracteres) *
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-extrabold text-slate-900">
+                        CURP (18 Caracteres) *
+                      </label>
+                      {curpVerificada && (
+                        <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md">
+                          ✓ Oficial RENAPO
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="text"
                       required
@@ -508,14 +601,25 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
                       placeholder="Ej. MECJ920514HCHDRR08"
                       value={formData.curp}
                       onChange={(e) => actualizarPaso1({ curp: e.target.value.toUpperCase() })}
-                      className="px-4 py-3 bg-white border-2 border-slate-300 rounded-xl text-sm font-mono font-bold uppercase text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none"
+                      className={`px-4 py-3 border-2 rounded-xl text-sm font-mono font-bold uppercase text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none ${
+                        curpVerificada
+                          ? 'bg-emerald-50/50 border-emerald-300'
+                          : 'bg-white border-slate-300'
+                      }`}
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-extrabold text-slate-900">
-                      RFC con Homoclave *
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-extrabold text-slate-900">
+                        RFC con Homoclave *
+                      </label>
+                      {curpVerificada && (
+                        <span className="text-[10px] font-black uppercase text-amber-700 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-md">
+                          {datosExtraidosCurp?.rfcCompleto ? '✓ Oficial SAT' : 'Prefijo Base'}
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="text"
                       required
@@ -523,7 +627,11 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
                       placeholder="Ej. MECJ920514QR3"
                       value={formData.rfc}
                       onChange={(e) => actualizarPaso1({ rfc: e.target.value.toUpperCase() })}
-                      className="px-4 py-3 bg-white border-2 border-slate-300 rounded-xl text-sm font-mono font-bold uppercase text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none"
+                      className={`px-4 py-3 border-2 rounded-xl text-sm font-mono font-bold uppercase text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none ${
+                        curpVerificada
+                          ? 'bg-emerald-50/50 border-emerald-300'
+                          : 'bg-white border-slate-300'
+                      }`}
                     />
                   </div>
                 </div>

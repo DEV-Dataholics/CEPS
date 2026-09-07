@@ -1,7 +1,6 @@
 import React from 'react'
 import {
   Menu,
-  PlusCircle,
   FolderArchive,
   Briefcase,
   SlidersHorizontal,
@@ -24,7 +23,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ vistaActual }) => {
   const {
     rolActivo,
     toggleMobileDrawer,
-    setModalEntrevistaGlobalAbierto,
   } = useAuthStore()
 
   const infoRol = METADATA_ROLES[rolActivo]
@@ -118,17 +116,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ vistaActual }) => {
           <span className="hidden sm:inline">{infoRol.titulo}</span>
           <span className="sm:hidden">{infoRol.departamento}</span>
         </div>
-
-        {/* Acción Rápida de Abordaje (Si tiene permiso) */}
-        {infoRol.permiteEntrevistaEnTablet && (
-          <button
-            onClick={() => setModalEntrevistaGlobalAbierto(true)}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black bg-[#D4AF37] text-[#0A162B] hover:bg-amber-400 transition shadow-md hover:scale-102"
-          >
-            <PlusCircle className="w-3.5 h-3.5" />
-            <span>Abordaje en Tablet</span>
-          </button>
-        )}
       </div>
     </header>
   )
