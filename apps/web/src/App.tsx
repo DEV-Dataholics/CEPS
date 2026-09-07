@@ -53,12 +53,16 @@ export default function App() {
       />
 
       {/* Área Principal de Contenido */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Cabecera Superior Ejecutiva y Limpia */}
         <AppHeader vistaActual={vistaEfectiva} />
 
         {/* Vista Activa */}
-        <main className="flex-1 flex flex-col min-w-0">
+        <main
+          className={`flex-1 min-w-0 flex flex-col ${
+            vistaEfectiva === 'dossiers' ? 'overflow-hidden' : 'overflow-y-auto'
+          }`}
+        >
           {vistaEfectiva === 'vacantes' ? (
             <VacancyManagerView />
           ) : vistaEfectiva === 'dossiers' ? (

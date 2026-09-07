@@ -282,7 +282,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     <>
       {/* Sidebar fijo en Desktop */}
       <aside
-        className={`hidden md:flex flex-col h-screen sticky top-0 transition-all duration-300 z-30 ${
+        className={`hidden md:flex flex-col h-screen flex-shrink-0 transition-all duration-300 z-30 ${
           sidebarCollapsed ? 'w-20' : 'w-64'
         }`}
       >

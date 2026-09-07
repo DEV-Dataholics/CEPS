@@ -92,7 +92,7 @@ export const GuardDossiersView: React.FC = () => {
   )
 
   return (
-    <div className="flex-1 flex flex-col bg-[#EDF2F7] overflow-hidden min-h-[calc(100vh-45px)]">
+    <div className="h-full flex-1 flex flex-col bg-[#EDF2F7] overflow-hidden">
       {/* Toast Notificación */}
       {toastMensaje && (
         <div className="fixed top-14 right-6 z-50 bg-[#0A162B] text-white border-2 border-[#D4AF37] px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-xs font-bold animate-bounce">
@@ -101,39 +101,31 @@ export const GuardDossiersView: React.FC = () => {
         </div>
       )}
 
-      {/* Barra de Título y Operaciones Rápidas */}
-      <div className="bg-[#0A162B] text-white px-6 py-4 border-b-4 border-[#D4AF37] flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-[#D4AF37] text-[#0A162B] flex items-center justify-center font-black text-xl shadow-md">
-            📁
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-widest bg-amber-500/20 text-[#D4AF37] px-2 py-0.5 rounded">
-                Archivo Confidencial CEPS
-              </span>
-              <span className="text-xs text-slate-400 font-mono">SEGURIDAD NACIONAL &bull; PATRIMONIAL</span>
-            </div>
-            <h1 className="text-xl font-black text-white tracking-wide">
-              Expedientes y Dossiers de Guardias
-            </h1>
-          </div>
+      {/* Barra de Subtítulo / Acciones Rápidas */}
+      <div className="bg-[#0A162B] text-white px-5 py-2.5 border-b-2 border-[#D4AF37] flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2.5">
+          <span className="text-[10px] font-black uppercase tracking-widest bg-amber-500/20 text-[#D4AF37] px-2 py-0.5 rounded">
+            Archivo Confidencial
+          </span>
+          <span className="text-xs text-slate-400 font-mono">
+            {expedientesFiltrados.length} Expedientes Listados
+          </span>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setModalEntrevistaAbierto(true)}
-            className="px-4 py-2.5 rounded-xl text-xs font-black bg-[#D4AF37] text-[#0A162B] hover:bg-amber-400 transition flex items-center gap-2 shadow-lg hover:scale-102"
+            className="px-3 py-1.5 rounded-xl text-xs font-black bg-[#D4AF37] text-[#0A162B] hover:bg-amber-400 transition flex items-center gap-1.5 shadow"
           >
-            <PlusCircle className="w-4 h-4" />
-            Nueva Entrevista en Tablet (Abordaje)
+            <PlusCircle className="w-3.5 h-3.5" />
+            Nueva Entrevista
           </button>
           <button
             onClick={reiniciarDemoDossiers}
-            className="p-2.5 rounded-xl bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition"
+            className="p-1.5 rounded-xl bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition"
             title="Restablecer expedientes demo"
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
