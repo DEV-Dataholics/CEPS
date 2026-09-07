@@ -441,7 +441,7 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
                             Identidad Oficial Verificada por Escáner
                           </span>
                           <span className="text-emerald-800 text-[11px] font-semibold">
-                            CURP: {datosExtraidosCurp.curp} &bull; Nacimiento: {datosExtraidosCurp.fechaNacimiento} ({datosExtraidosCurp.nombreEntidad}) &bull; {datosExtraidosCurp.edad} años
+                            {[formData.nombre, formData.apellidoPaterno, formData.apellidoMaterno].filter(Boolean).join(' ') || 'Aspirante'} &bull; CURP: {datosExtraidosCurp.curp} &bull; Nacimiento: {datosExtraidosCurp.fechaNacimiento} ({datosExtraidosCurp.nombreEntidad}) &bull; {datosExtraidosCurp.edad} años
                           </span>
                         </div>
                       </div>
@@ -457,44 +457,80 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
                   )}
 
                   <div className="flex flex-col gap-1.5 sm:col-span-2">
-                    <label className="text-xs font-extrabold text-slate-900">
-                      Nombre(s) *
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-extrabold text-slate-900">
+                        Nombre(s) *
+                      </label>
+                      {curpVerificada && formData.nombre && (
+                        <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md flex items-center gap-1">
+                          <Check className="w-3 h-3 text-emerald-600" />
+                          Verificado por Documento
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="text"
                       required
                       placeholder="Ej. Jorge Alejandro"
                       value={formData.nombre}
                       onChange={(e) => actualizarPaso1({ nombre: e.target.value })}
-                      className="px-4 py-3 bg-white border-2 border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none"
+                      className={`px-4 py-3 border-2 rounded-xl text-sm font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none ${
+                        curpVerificada && formData.nombre
+                          ? 'bg-emerald-50/50 border-emerald-300'
+                          : 'bg-white border-slate-300'
+                      }`}
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-extrabold text-slate-900">
-                      Apellido Paterno *
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-extrabold text-slate-900">
+                        Apellido Paterno *
+                      </label>
+                      {curpVerificada && formData.apellidoPaterno && (
+                        <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md flex items-center gap-1">
+                          <Check className="w-3 h-3 text-emerald-600" />
+                          Verificado
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="text"
                       required
                       placeholder="Ej. Medina"
                       value={formData.apellidoPaterno}
                       onChange={(e) => actualizarPaso1({ apellidoPaterno: e.target.value })}
-                      className="px-4 py-3 bg-white border-2 border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none"
+                      className={`px-4 py-3 border-2 rounded-xl text-sm font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none ${
+                        curpVerificada && formData.apellidoPaterno
+                          ? 'bg-emerald-50/50 border-emerald-300'
+                          : 'bg-white border-slate-300'
+                      }`}
                     />
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-extrabold text-slate-900">
-                      Apellido Materno *
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-extrabold text-slate-900">
+                        Apellido Materno *
+                      </label>
+                      {curpVerificada && formData.apellidoMaterno && (
+                        <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md flex items-center gap-1">
+                          <Check className="w-3 h-3 text-emerald-600" />
+                          Verificado
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="text"
                       required
                       placeholder="Ej. Castillo"
                       value={formData.apellidoMaterno}
                       onChange={(e) => actualizarPaso1({ apellidoMaterno: e.target.value })}
-                      className="px-4 py-3 bg-white border-2 border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none"
+                      className={`px-4 py-3 border-2 rounded-xl text-sm font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none ${
+                        curpVerificada && formData.apellidoMaterno
+                          ? 'bg-emerald-50/50 border-emerald-300'
+                          : 'bg-white border-slate-300'
+                      }`}
                     />
                   </div>
 

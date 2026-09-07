@@ -141,6 +141,9 @@ export const useCandidateStore = create<CandidateStoreState>()(
           pasoActual: 1,
           formData: {
             ...state.formData,
+            nombre: datos.nombre || state.formData.nombre,
+            apellidoPaterno: datos.apellidoPaterno || state.formData.apellidoPaterno,
+            apellidoMaterno: datos.apellidoMaterno || state.formData.apellidoMaterno,
             curp: datos.curp,
             edad: String(datos.edad),
             sexo: datos.sexo,

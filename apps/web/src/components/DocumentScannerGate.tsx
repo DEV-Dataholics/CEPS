@@ -9,6 +9,9 @@ import {
   FileCheck,
   ChevronRight,
   RefreshCw,
+  User,
+  FileText,
+  QrCode,
 } from 'lucide-react'
 import {
   parseCurp,
@@ -29,6 +32,11 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
   const [etapa, setEtapa] = useState<EtapaEscaneo>('curp')
   const [curpExtraida, setCurpExtraida] = useState<ExtractedCurpData | null>(null)
   const [rfcCompleto, setRfcCompleto] = useState<string | null>(null)
+
+  // Nombre Completo Oficial Extraído / Editable
+  const [nombreInput, setNombreInput] = useState('')
+  const [apellidoPaternoInput, setApellidoPaternoInput] = useState('')
+  const [apellidoMaternoInput, setApellidoMaternoInput] = useState('')
 
   // Estado de Cámara en Vivo
   const [camaraActiva, setCamaraActiva] = useState(true)
@@ -130,16 +138,26 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
         const resultado = parseCurp(rawString)
         if (resultado) {
           setCurpExtraida(resultado)
+          if (resultado.nombre) setNombreInput(resultado.nombre)
+          if (resultado.apellidoPaterno) setApellidoPaternoInput(resultado.apellidoPaterno)
+          if (resultado.apellidoMaterno) setApellidoMaternoInput(resultado.apellidoMaterno)
           setEtapa('sat_opcional')
         }
       } else if (etapa === 'sat_opcional') {
         const satData = parseSatQr(rawString)
         if (satData) {
           setRfcCompleto(satData.rfc)
+          if (satData.nombre) setNombreInput(satData.nombre)
+          if (satData.apellidoPaterno) setApellidoPaternoInput(satData.apellidoPaterno)
+          if (satData.apellidoMaterno) setApellidoMaternoInput(satData.apellidoMaterno)
           if (curpExtraida) {
             setCurpExtraida({
               ...curpExtraida,
               rfcCompleto: satData.rfc,
+              nombre: satData.nombre || curpExtraida.nombre,
+              apellidoPaterno: satData.apellidoPaterno || curpExtraida.apellidoPaterno,
+              apellidoMaterno: satData.apellidoMaterno || curpExtraida.apellidoMaterno,
+              nombreCompleto: satData.nombreCompleto || curpExtraida.nombreCompleto,
             })
           }
           setEtapa('confirmacion')
@@ -270,6 +288,9 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
     }
 
     setCurpExtraida(resultado)
+    if (resultado.nombre) setNombreInput(resultado.nombre)
+    if (resultado.apellidoPaterno) setApellidoPaternoInput(resultado.apellidoPaterno)
+    if (resultado.apellidoMaterno) setApellidoMaternoInput(resultado.apellidoMaterno)
     setEtapa('sat_opcional')
   }
 
@@ -279,8 +300,17 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
   const manejarConfirmarFinal = () => {
     if (!curpExtraida) return
 
+    const nom = nombreInput.trim().toUpperCase()
+    const pat = apellidoPaternoInput.trim().toUpperCase()
+    const mat = apellidoMaternoInput.trim().toUpperCase()
+    const completo = [nom, pat, mat].filter(Boolean).join(' ')
+
     const datosFinales: ExtractedCurpData = {
       ...curpExtraida,
+      nombre: nom || curpExtraida.nombre,
+      apellidoPaterno: pat || curpExtraida.apellidoPaterno,
+      apellidoMaterno: mat || curpExtraida.apellidoMaterno,
+      nombreCompleto: completo || curpExtraida.nombreCompleto,
       rfcCompleto: rfcCompleto || curpExtraida.rfcCompleto,
     }
 
@@ -459,6 +489,40 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                 </form>
               )}
             </div>
+
+            {/* Simuladores de Escaneo Rápido (Pruebas en Campo / Demostración) */}
+            <div className="w-full max-w-md pt-2 border-t border-slate-800 flex flex-col gap-2">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider text-center">
+                Simulación de Escaneo de Credencial (Pruebas Rápidas)
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    procesarTextoDetectado(
+                      'IDMEX1812345677<<0123<<<<<<<<<<<\n9205148H2812312MEX<<08\nMEDINA<CASTILLO<<JORGE<ALEJANDRO<<<<<<'
+                    )
+                  }}
+                  className="py-2 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-[11px] font-bold text-slate-200 transition flex items-center justify-center gap-1.5 shadow-xs"
+                >
+                  <FileText className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  <span>INE Reverso (MRZ)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    procesarTextoDetectado(
+                      'https://consultas.curp.gob.mx/CurpSP/qr?curp=MECJ920514HCHDRR08&primerApellido=MEDINA&segundoApellido=CASTILLO&nombres=JORGE%20ALEJANDRO'
+                    )
+                  }}
+                  className="py-2 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-[11px] font-bold text-slate-200 transition flex items-center justify-center gap-1.5 shadow-xs"
+                >
+                  <QrCode className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>QR RENAPO Oficial</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -498,10 +562,23 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
             </div>
 
             {/* Botones de Decisión */}
-            <div className="w-full max-w-md flex flex-col sm:flex-row gap-3 pt-2">
+            <div className="w-full max-w-md flex flex-col gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  procesarTextoDetectado(
+                    'https://siat.sat.gob.mx/app/qr/faces/pages/mobile/validadorqr.jsf?D1=10&D2=1&D3=1412038198_MECJ920514QR3'
+                  )
+                }}
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-black bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition border border-emerald-500/40 flex items-center justify-center gap-2"
+              >
+                <FileCheck className="w-4 h-4 text-emerald-400" />
+                <span>Simular Escaneo Cédula SAT (RFC con Homoclave QR3)</span>
+              </button>
+
               <button
                 onClick={() => setEtapa('confirmacion')}
-                className="flex-1 py-2.5 px-4 rounded-xl text-xs font-extrabold bg-slate-800 text-slate-200 hover:bg-slate-700 transition border border-slate-600 flex items-center justify-center gap-2"
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-extrabold bg-slate-800 text-slate-200 hover:bg-slate-700 transition border border-slate-600 flex items-center justify-center gap-2"
               >
                 <span>Continuar con RFC Base ({curpExtraida.rfcBase})</span>
                 <ChevronRight className="w-4 h-4 text-slate-400" />
@@ -540,6 +617,69 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                 <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
                   ✓ Verificada
                 </span>
+              </div>
+
+              {/* Nombre Completo Oficial Extraído / Confirmable */}
+              <div className="bg-slate-900/90 p-4 rounded-xl border border-slate-800 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-[#D4AF37] flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5" />
+                    Nombre Completo del Aspirante
+                  </span>
+                  {curpExtraida.nombre ? (
+                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/50 px-2 py-0.5 rounded">
+                      ✓ Extraído de Documento
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold text-amber-400 bg-amber-950/60 border border-amber-500/50 px-2 py-0.5 rounded">
+                      Completa tus Datos
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-1 uppercase">
+                      Nombre(s) *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ej: JORGE ALEJANDRO"
+                      value={nombreInput}
+                      onChange={(e) => setNombreInput(e.target.value.toUpperCase())}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs font-bold text-white uppercase outline-none focus:border-[#D4AF37]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-1 uppercase">
+                      Apellido Paterno *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ej: MEDINA"
+                      value={apellidoPaternoInput}
+                      onChange={(e) => setApellidoPaternoInput(e.target.value.toUpperCase())}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs font-bold text-white uppercase outline-none focus:border-[#D4AF37]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 block mb-1 uppercase">
+                      Apellido Materno *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ej: CASTILLO"
+                      value={apellidoMaternoInput}
+                      onChange={(e) => setApellidoMaternoInput(e.target.value.toUpperCase())}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs font-bold text-white uppercase outline-none focus:border-[#D4AF37]"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Atributos Demográficos Clave */}
