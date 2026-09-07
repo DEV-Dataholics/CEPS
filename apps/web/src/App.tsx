@@ -1,10 +1,11 @@
 import React, { useState } from 'react'
 import { UiKitDemo } from './pages/UiKitDemo'
-import { Server, LayoutDashboard, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react'
+import { CandidateRegistrationView } from './pages/CandidateRegistrationView'
+import { Server, LayoutDashboard, CheckCircle2, AlertCircle, RefreshCw, UserPlus } from 'lucide-react'
 import { api, type HealthCheckResponse } from './lib/api'
 
 export default function App() {
-  const [vista, setVista] = useState<'uikit' | 'diagnostico'>('uikit')
+  const [vista, setVista] = useState<'candidato' | 'uikit' | 'diagnostico'>('candidato')
   const [health, setHealth] = useState<HealthCheckResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -24,42 +25,60 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#EDF2F7] flex flex-col font-sans">
-      {/* Selector Rápido Superior con Contraste Elevado */}
-      <div className="bg-[#060E1C] text-white px-6 py-2.5 border-b-2 border-slate-800 flex items-center justify-between text-xs font-semibold">
-        <div className="flex items-center gap-2.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span className="font-extrabold text-slate-200 tracking-wide">CEPS Paso del Norte &bull; Entorno Local Laragon</span>
-        </div>
+      {/* Selector Superior Institucional */}
+      <div className="bg-[#060E1C] text-white px-4 sm:px-6 py-2 border-b-2 border-slate-800 flex flex-wrap items-center justify-between gap-2.5 text-xs font-semibold">
         <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span className="font-extrabold text-slate-200 tracking-wide text-xs">
+            CEPS Paso del Norte &bull; Plataforma Operativa
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+          <button
+            onClick={() => setVista('candidato')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
+              vista === 'candidato'
+                ? 'bg-[#D4AF37] text-[#0A162B]'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            Portal Candidato
+          </button>
+
           <button
             onClick={() => setVista('uikit')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
               vista === 'uikit'
                 ? 'bg-[#D4AF37] text-[#0A162B]'
                 : 'text-slate-300 hover:text-white hover:bg-slate-800'
             }`}
           >
-            <LayoutDashboard className="w-4 h-4" />
-            Guía Visual &amp; Demo UX/UI
+            <LayoutDashboard className="w-3.5 h-3.5" />
+            Guía Visual Demo
           </button>
+
           <button
             onClick={() => {
               setVista('diagnostico')
               checkStatus()
             }}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
               vista === 'diagnostico'
                 ? 'bg-[#D4AF37] text-[#0A162B]'
                 : 'text-slate-300 hover:text-white hover:bg-slate-800'
             }`}
           >
-            <Server className="w-4 h-4" />
-            Diagnóstico Laragon (CI4)
+            <Server className="w-3.5 h-3.5" />
+            Diagnóstico Backend
           </button>
         </div>
       </div>
 
-      {vista === 'uikit' ? (
+      {vista === 'candidato' ? (
+        <CandidateRegistrationView />
+      ) : vista === 'uikit' ? (
         <UiKitDemo />
       ) : (
         <div className="max-w-4xl w-full mx-auto p-8 flex-1 flex flex-col gap-6">
