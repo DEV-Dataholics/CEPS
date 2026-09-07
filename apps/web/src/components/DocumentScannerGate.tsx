@@ -10,8 +10,6 @@ import {
   ChevronRight,
   RefreshCw,
   User,
-  QrCode,
-  ShieldCheck,
   ShieldAlert,
   AlertTriangle,
   Check,
@@ -20,7 +18,6 @@ import {
 import {
   parseCurp,
   parseSatQr,
-  CATALOGO_CURP_DEMO,
   type ExtractedCurpData,
 } from '../lib/mexicanIdParser'
 import {
@@ -520,59 +517,6 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                 </form>
               )}
             </div>
-
-            {/* Simuladores de Escaneo con Formato Oficial RENAPO */}
-            <div className="w-full max-w-md pt-2 border-t border-slate-800 flex flex-col gap-2">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider text-center">
-                Simulación con Formato Oficial RENAPO (Tuberías |)
-              </span>
-
-              <div className="grid grid-cols-1 gap-2">
-                {CATALOGO_CURP_DEMO.map((demo) => {
-                  const esDuplicado = (aspirantes || []).some(
-                    (a) =>
-                      Boolean(
-                        a?.curp &&
-                          demo?.curp &&
-                          a.curp.trim().toUpperCase() === demo.curp.trim().toUpperCase()
-                      )
-                  )
-
-                  return (
-                    <button
-                      key={demo.id}
-                      type="button"
-                      onClick={() => procesarTextoDetectado(demo.rawCurpText)}
-                      className={`p-2.5 rounded-xl border text-left transition flex items-center justify-between gap-2 ${
-                        esDuplicado
-                          ? 'bg-rose-950/30 hover:bg-rose-900/40 border-rose-500/40'
-                          : 'bg-emerald-950/30 hover:bg-emerald-900/40 border-emerald-500/40'
-                      }`}
-                    >
-                      <div className="flex flex-col">
-                        <span className="font-extrabold text-xs text-white flex items-center gap-1.5">
-                          <QrCode className="w-3.5 h-3.5 text-[#D4AF37]" />
-                          {demo.titulo}
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          {demo.curp} &bull; {demo.subtitulo}
-                        </span>
-                      </div>
-
-                      <span
-                        className={`text-[9px] font-black uppercase px-2 py-0.5 rounded whitespace-nowrap ${
-                          esDuplicado
-                            ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                            : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                        }`}
-                      >
-                        {esDuplicado ? 'Alerta Reingreso' : 'Aspirante Nuevo'}
-                      </span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
           </div>
         )}
 
@@ -622,30 +566,8 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
               </div>
             </div>
 
-            {/* Botones de Decisión Táctica */}
-            <div className="w-full max-w-md flex flex-col gap-2.5 pt-1">
-              <button
-                type="button"
-                onClick={() => {
-                  // Simular RFC con homoclave representativo
-                  const rfcSimulado =
-                    curpExtraida.curp === 'RULG861230HCHZZS06'
-                      ? 'RULG8612307C5'
-                      : `${curpExtraida.rfcBase}QR3`
-                  procesarTextoDetectado(rfcSimulado)
-                }}
-                className="w-full py-2.5 px-4 rounded-xl text-xs font-black bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition border border-emerald-500/40 flex items-center justify-center gap-2"
-              >
-                <FileCheck className="w-4 h-4 text-emerald-400" />
-                <span>
-                  Simular Escaneo RFC con Homoclave (
-                  {curpExtraida.curp === 'RULG861230HCHZZS06'
-                    ? 'RULG8612307C5'
-                    : `${curpExtraida.rfcBase}QR3`}
-                  )
-                </span>
-              </button>
-
+            {/* Botón para continuar con RFC Base */}
+            <div className="w-full max-w-md pt-1">
               <button
                 type="button"
                 onClick={() => setEtapa('confirmacion')}
@@ -676,8 +598,8 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
               </p>
             </div>
 
-            {/* CANDADO DE DUPLICIDAD / REINGRESO */}
-            {resultadoDuplicidad && (
+            {/* CANDADO DE DUPLICIDAD / REINGRESO (SOLO SI REALMENTE HAY DUPLICIDAD U HOMÓNIMO) */}
+            {resultadoDuplicidad && (resultadoDuplicidad.esDuplicadoCurp || resultadoDuplicidad.esHomonimo) && (
               <div className="w-full">
                 {resultadoDuplicidad.esDuplicadoCurp ? (
                   <div className="bg-rose-950/40 border-2 border-rose-500 p-4 sm:p-5 rounded-2xl shadow-xl space-y-3">
@@ -730,7 +652,7 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                       </span>
                     </label>
                   </div>
-                ) : resultadoDuplicidad.esHomonimo ? (
+                ) : (
                   <div className="bg-amber-950/40 border-2 border-amber-500 p-4 rounded-2xl shadow-xl flex items-center gap-3">
                     <AlertTriangle className="w-6 h-6 text-amber-400 flex-shrink-0" />
                     <div>
@@ -741,13 +663,6 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                         Existe un registro con el mismo nombre pero diferente CURP. Se permite el avance pero se marcará para revisión de mesa de control.
                       </p>
                     </div>
-                  </div>
-                ) : (
-                  <div className="bg-emerald-950/30 border border-emerald-500/50 p-3 rounded-xl flex items-center gap-2.5">
-                    <ShieldCheck className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-                    <span className="text-xs font-bold text-emerald-300">
-                      Candado de Duplicidad Limpio: No registra antecedentes previos en la base institucional.
-                    </span>
                   </div>
                 )}
               </div>

@@ -33,11 +33,11 @@ La credencial física (INE) se mantiene obligatoria en el flujo pero dentro del 
 1. **[`apps/web/src/lib/mexicanIdParser.ts`](file:///c:/Users/gruiz/OneDrive/Documentos/CEPS/apps/web/src/lib/mexicanIdParser.ts):**
    - Implementación del parser de tuberías oficiales de RENAPO con tolerancia a tokens vacíos (`||`).
    - Soporte para RFC directo de 13 caracteres en `parseSatQr`.
-   - Incorporación del catálogo demo táctico `CATALOGO_CURP_DEMO` con perfiles reales (Gustavo Alonso Ruiz Lozano, Jorge Alejandro Medina Castillo, etc.).
+   - Limpieza de catálogos y perfiles de simulación para un entorno de producción real.
 2. **[`apps/web/src/components/DocumentScannerGate.tsx`](file:///c:/Users/gruiz/OneDrive/Documentos/CEPS/apps/web/src/components/DocumentScannerGate.tsx):**
-   - Eliminación completa de pestañas y botones de escaneo de INE frente.
-   - Flujo lineal en 2 pasos de escaneo (Paso 1: CURP RENAPO, Paso 2: SAT/RFC opcional) y Ficha de Confirmación en Paso 3.
-   - Evaluación y visualización reactiva de candados de duplicidad y alertas de reingreso con autorización explícita.
+   - Eliminación total de botones y bloques de simulación / perfiles demo.
+   - La alerta de duplicidad se renderiza de forma estrictamente condicional: si no hay duplicidad, no se muestra ninguna tarjeta ni mensaje de candado; únicamente si la CURP ya existe en la base operativa salta la Alerta Roja de Reingreso con el folio histórico y el checkbox de autorización.
+   - Flujo lineal enfocado en escaneo en vivo por cámara, lector láser físico (HID) o captura manual de respaldo.
 3. **[`apps/web/src/lib/duplicityChecker.ts`](file:///c:/Users/gruiz/OneDrive/Documentos/CEPS/apps/web/src/lib/duplicityChecker.ts):**
    - Robustecimiento contra elementos nulos o arreglos no inicializados (`null-safe`).
    - Normalización de CURP y nombres para comparaciones exactas.
