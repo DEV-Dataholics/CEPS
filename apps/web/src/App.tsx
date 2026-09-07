@@ -3,11 +3,13 @@ import { UiKitDemo } from './pages/UiKitDemo'
 import { CandidateRegistrationView } from './pages/CandidateRegistrationView'
 import { VacancyManagerView } from './pages/VacancyManagerView'
 import { CandidateStatusTrackingView } from './pages/CandidateStatusTrackingView'
-import { Server, LayoutDashboard, CheckCircle2, AlertCircle, RefreshCw, UserPlus, Briefcase, Search } from 'lucide-react'
+import { CatalogManagerView } from './pages/CatalogManagerView'
+import { GuardDossiersView } from './pages/GuardDossiersView'
+import { Server, LayoutDashboard, CheckCircle2, AlertCircle, RefreshCw, UserPlus, Briefcase, Search, SlidersHorizontal, FolderArchive } from 'lucide-react'
 import { api, type HealthCheckResponse } from './lib/api'
 
 export default function App() {
-  const [vista, setVista] = useState<'vacantes' | 'candidato' | 'tracking' | 'uikit' | 'diagnostico'>('vacantes')
+  const [vista, setVista] = useState<'vacantes' | 'dossiers' | 'candidato' | 'tracking' | 'catalogos' | 'uikit' | 'diagnostico'>('dossiers')
   const [health, setHealth] = useState<HealthCheckResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -50,6 +52,18 @@ export default function App() {
           </button>
 
           <button
+            onClick={() => setVista('dossiers')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
+              vista === 'dossiers'
+                ? 'bg-[#D4AF37] text-[#0A162B]'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <FolderArchive className="w-3.5 h-3.5" />
+            Expedientes de Guardias
+          </button>
+
+          <button
             onClick={() => setVista('candidato')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
               vista === 'candidato'
@@ -71,6 +85,18 @@ export default function App() {
           >
             <Search className="w-3.5 h-3.5" />
             Consultar Estatus (Folio)
+          </button>
+
+          <button
+            onClick={() => setVista('catalogos')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
+              vista === 'catalogos'
+                ? 'bg-[#D4AF37] text-[#0A162B]'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            Catálogos del Sistema
           </button>
 
           <button
@@ -104,10 +130,14 @@ export default function App() {
 
       {vista === 'vacantes' ? (
         <VacancyManagerView />
+      ) : vista === 'dossiers' ? (
+        <GuardDossiersView />
       ) : vista === 'candidato' ? (
         <CandidateRegistrationView onConsultarEstatus={() => setVista('tracking')} />
       ) : vista === 'tracking' ? (
         <CandidateStatusTrackingView />
+      ) : vista === 'catalogos' ? (
+        <CatalogManagerView />
       ) : vista === 'uikit' ? (
         <UiKitDemo />
       ) : (

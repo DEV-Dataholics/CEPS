@@ -25,6 +25,7 @@ import { LocationPicker } from '../components/LocationPicker'
 import { generateCepsReceiptPdf } from '../lib/generateCepsReceiptPdf'
 import { useCandidateStore } from '../store/candidateStore'
 import { useVacancyStore } from '../store/vacancyStore'
+import { useCatalogStore } from '../store/catalogStore'
 
 interface CandidateRegistrationViewProps {
   onConsultarEstatus?: (folio: string) => void
@@ -55,6 +56,11 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
     validarPaso3,
     validarPaso5,
   } = useCandidateStore()
+
+  const { modulos, puestos, turnos } = useCatalogStore()
+  const modulosActivos = modulos.filter((m) => m.estatus === 'activo')
+  const puestosActivos = puestos.filter((p) => p.estatus === 'activo')
+  const turnosActivos = turnos.filter((t) => t.estatus === 'activo')
 
   const [erroresLocales, setErroresLocales] = useState<Record<string, string>>({})
   const [modalReinicioOpen, setModalReinicioOpen] = useState(false)
@@ -535,10 +541,15 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
                       onChange={(e) => actualizarPaso2({ modulo: e.target.value })}
                       className="px-4 py-3 bg-white border-2 border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none"
                     >
-                      <option>Módulo S-Mart Independencia</option>
-                      <option>Módulo Monumento Benito Juárez</option>
-                      <option>Módulo Sendero Las Torres</option>
-                      <option>Oficina Central CEPS (Ciudad Juárez)</option>
+                      {modulosActivos.length > 0 ? (
+                        modulosActivos.map((m) => (
+                          <option key={m.id} value={m.nombre}>
+                            {m.nombre} ({m.zona})
+                          </option>
+                        ))
+                      ) : (
+                        <option value={formData.modulo}>{formData.modulo}</option>
+                      )}
                     </select>
                   </div>
 
@@ -551,11 +562,15 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
                       onChange={(e) => actualizarPaso2({ puesto: e.target.value })}
                       className="px-4 py-3 bg-white border-2 border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none"
                     >
-                      <option>Guardia de Seguridad Industrial 12x12</option>
-                      <option>Custodia Intramuros Maquiladora</option>
-                      <option>Vigilancia Comercial y Retail</option>
-                      <option>Seguridad Residencial / Fraccionamientos</option>
-                      <option>Supervisor de Turno / Patrulla</option>
+                      {puestosActivos.length > 0 ? (
+                        puestosActivos.map((p) => (
+                          <option key={p.id} value={p.titulo}>
+                            {p.titulo} (${p.sueldoSugeridoSemanalNeto.toLocaleString('es-MX')} /sem)
+                          </option>
+                        ))
+                      ) : (
+                        <option value={formData.puesto}>{formData.puesto}</option>
+                      )}
                     </select>
                   </div>
 
@@ -568,10 +583,15 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
                       onChange={(e) => actualizarPaso2({ turno: e.target.value })}
                       className="px-4 py-3 bg-white border-2 border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none"
                     >
-                      <option>Turno 1 (Mañana 5x2)</option>
-                      <option>Turno 2 (Tarde 5x2)</option>
-                      <option>Turno 12x12 (Mixto / Rol de turnos)</option>
-                      <option>Disponibilidad Completa</option>
+                      {turnosActivos.length > 0 ? (
+                        turnosActivos.map((t) => (
+                          <option key={t.id} value={t.nombre}>
+                            {t.nombre} ({t.horarioEntradaSalida})
+                          </option>
+                        ))
+                      ) : (
+                        <option value={formData.turno}>{formData.turno}</option>
+                      )}
                     </select>
                   </div>
 

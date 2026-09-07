@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
-import { X, Building2, PlusCircle, AlertCircle } from 'lucide-react'
+import { X, Building2, PlusCircle, AlertCircle, Sparkles } from 'lucide-react'
 import { vacancySchema, type VacancyInput } from '../schemas/vacancySchema'
 import { useVacancyStore } from '../store/vacancyStore'
+import { useCatalogStore } from '../store/catalogStore'
 
 interface NewVacancyModalProps {
   isOpen: boolean
@@ -10,13 +11,18 @@ interface NewVacancyModalProps {
 
 export const NewVacancyModal: React.FC<NewVacancyModalProps> = ({ isOpen, onClose }) => {
   const { crearVacante } = useVacancyStore()
+  const { clientes, turnos, puestos } = useCatalogStore()
+
+  const clientesActivos = clientes.filter((c) => c.estatus === 'activo')
+  const turnosActivos = turnos.filter((t) => t.estatus === 'activo')
+  const puestosActivos = puestos.filter((p) => p.estatus === 'activo')
 
   const [formData, setFormData] = useState<VacancyInput>({
     empresa: '',
     planta: '',
     zona: 'Parque Industrial San Jerónimo',
     puesto: 'Guardia de Seguridad Industrial 12x12',
-    turno: '12x12 Rol de Turnos (4x3)',
+    turno: turnosActivos[0]?.nombre || '12x12 Rol de Turnos (4x3)',
     plazasTotales: 3,
     sueldoSemanal: '$3,400 netos',
     prestaciones: 'Transporte gratuito + Comedor subsidiado + Bono puntualidad',
@@ -26,6 +32,33 @@ export const NewVacancyModal: React.FC<NewVacancyModalProps> = ({ isOpen, onClos
   const [errores, setErrores] = useState<Record<string, string>>({})
 
   if (!isOpen) return null
+
+  // Autocompletar datos al seleccionar cliente del catálogo
+  const handleSeleccionarCliente = (clienteId: string) => {
+    const cli = clientesActivos.find((c) => c.id === clienteId)
+    if (cli) {
+      setFormData((prev) => ({
+        ...prev,
+        empresa: cli.empresa,
+        planta: cli.planta,
+        zona: cli.zona,
+      }))
+    }
+  }
+
+  // Autocompletar datos al seleccionar puesto del catálogo
+  const handleSeleccionarPuesto = (puestoId: string) => {
+    const pue = puestosActivos.find((p) => p.id === puestoId)
+    if (pue) {
+      setFormData((prev) => ({
+        ...prev,
+        puesto: pue.titulo,
+        sueldoSemanal: pue.sueldoSemanalSugerido,
+        prestaciones: pue.prestacionesSugeridas,
+        requisitos: pue.perfilMinimo,
+      }))
+    }
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -85,6 +118,51 @@ export const NewVacancyModal: React.FC<NewVacancyModalProps> = ({ isOpen, onClos
             </div>
           )}
 
+          {/* ASISTENTES DE SELECCIÓN RÁPIDA DESDE CATÁLOGOS MAESTROS */}
+          <div className="p-3.5 bg-slate-50 border-2 border-slate-200 rounded-xl flex flex-col gap-2.5">
+            <span className="font-extrabold text-[11px] text-[#0A162B] flex items-center gap-1.5 uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+              Cargar desde Catálogos Maestros CEPS
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 block mb-0.5">
+                  Plantilla Cliente / Maquiladora:
+                </label>
+                <select
+                  onChange={(e) => handleSeleccionarCliente(e.target.value)}
+                  defaultValue=""
+                  className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800"
+                >
+                  <option value="" disabled>Seleccionar cliente existente...</option>
+                  {clientesActivos.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.empresa} - {c.planta}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 block mb-0.5">
+                  Plantilla Puesto &amp; Tabulador:
+                </label>
+                <select
+                  onChange={(e) => handleSeleccionarPuesto(e.target.value)}
+                  defaultValue=""
+                  className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800"
+                >
+                  <option value="" disabled>Seleccionar puesto tabulado...</option>
+                  {puestosActivos.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.titulo} ({p.sueldoSemanalSugerido})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div className="flex flex-col gap-1 sm:col-span-2">
               <label className="font-extrabold text-slate-900">
@@ -143,11 +221,20 @@ export const NewVacancyModal: React.FC<NewVacancyModalProps> = ({ isOpen, onClos
                 onChange={(e) => setFormData({ ...formData, turno: e.target.value })}
                 className="px-3 py-2 bg-white border border-slate-300 rounded-xl font-bold text-slate-900 focus:ring-2 focus:ring-[#0A162B] outline-none"
               >
-                <option>12x12 Rol de Turnos (4x3)</option>
-                <option>Turno 1 (Mañana 5x2 de 06:00 a 15:30)</option>
-                <option>Turno 2 (Tarde 5x2 de 15:30 a 23:00)</option>
-                <option>12x12 Nocturno</option>
-                <option>Turno Especial Fin de Semana</option>
+                {turnosActivos.length > 0 ? (
+                  turnosActivos.map((t) => (
+                    <option key={t.id} value={t.nombre}>
+                      {t.nombre}
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option>12x12 Rol de Turnos (4x3)</option>
+                    <option>Turno 1 (Mañana 5x2 de 06:00 a 15:30)</option>
+                    <option>Turno 2 (Tarde 5x2 de 15:30 a 23:00)</option>
+                    <option>12x12 Nocturno</option>
+                  </>
+                )}
               </select>
             </div>
 
