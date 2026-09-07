@@ -280,7 +280,7 @@ export const CandidateStatusTrackingView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* ETAPA 3: EVALUACIÓN MÉDICA Y ANTIDOPING (CONTACTO DIRECTO RH) */}
+                {/* ETAPAS 3 Y 4: MENSAJE GENERAL - EVALUACIÓN MÉDICA, ANTIDOPING Y CONTRATACIÓN */}
                 <div className="relative">
                   <div
                     className={`absolute -left-6 top-0.5 w-5 h-5 rounded-full flex items-center justify-center ring-4 ring-white shadow-xs ${
@@ -289,35 +289,43 @@ export const CandidateStatusTrackingView: React.FC = () => {
                         : 'bg-slate-300 text-slate-600'
                     }`}
                   >
-                    <span className="text-[10px] font-extrabold">3</span>
+                    <span className="text-[9px] font-extrabold">3-4</span>
                   </div>
                   <div>
-                    <h4 className="text-sm font-extrabold text-[#0A162B]">
-                      3. Evaluación Médica &amp; Prueba Antidoping
-                    </h4>
-                    <div className="mt-2 p-3.5 bg-blue-50 border-2 border-blue-200 rounded-xl text-xs text-blue-950 flex flex-col gap-1">
-                      <p className="font-extrabold text-blue-900">
-                        Pronto recibirás más información sobre tu evaluación médica y examen toxicológico (antidoping).
-                      </p>
-                      <p className="text-blue-800 font-medium">
-                        El equipo de Reclutamiento de CEPS se comunicará contigo vía telefónica o WhatsApp para indicarte la fecha, horario y ubicación de tu valoración.
-                      </p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-sm font-extrabold text-[#0A162B]">
+                        3 y 4. Evaluación Médica, Antidoping y Contratación
+                      </h4>
+                      <span className="text-[10px] font-extrabold bg-[#0A162B] text-[#D4AF37] px-2 py-0.5 rounded-md border border-[#D4AF37]/40">
+                        Atención Personalizada por Reclutamiento
+                      </span>
                     </div>
-                  </div>
-                </div>
 
-                {/* ETAPA 4: CONTRATACIÓN E INDUCCIÓN */}
-                <div className="relative">
-                  <div className="absolute -left-6 top-0.5 w-5 h-5 rounded-full bg-slate-300 text-slate-600 flex items-center justify-center ring-4 ring-white shadow-xs">
-                    <span className="text-[10px] font-extrabold">4</span>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-extrabold text-slate-700">
-                      4. Contratación, Uniforme y Gafete Oficial
-                    </h4>
-                    <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">
-                      Una vez acreditada tu evaluación médica, el equipo administrativo se pondrá en contacto contigo para coordinar tu firma de contrato, entrega de uniforme y emisión de tu gafete de seguridad.
-                    </p>
+                    <div className="mt-2.5 p-4 bg-blue-50/90 border-2 border-blue-200 rounded-xl text-xs text-blue-950 flex flex-col gap-2.5">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+                          <Clock className="w-4 h-4" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="font-extrabold text-sm text-blue-900 leading-snug">
+                            Pronto recibirás más información sobre tu evaluación médica y antidoping.
+                          </p>
+                          <p className="text-blue-800 font-medium leading-relaxed">
+                            Actualmente las agendas de laboratorio y valoración médica son gestionadas de manera personalizada por nuestro equipo de Reclutamiento. Personal de CEPS se comunicará directamente contigo (vía llamada telefónica o WhatsApp) para coordinar tu fecha, horario y ubicación exacta, así como para la formalización de tu contrato, entrega de uniforme y gafete de seguridad.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-blue-200 flex items-center justify-between flex-wrap gap-2 text-[11px] font-bold text-blue-900">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
+                          Teléfono de contacto registrado: {candidatoEncontrado.telefono}
+                        </span>
+                        <span className="text-slate-500 font-medium">
+                          No es necesario acudir a oficinas sin previa llamada de confirmación.
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

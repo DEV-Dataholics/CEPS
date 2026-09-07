@@ -908,6 +908,21 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
               </p>
             </div>
 
+            {/* AVISO INSTITUCIONAL DE PRÓXIMOS PASOS (EVALUACIÓN MÉDICA Y ANTIDOPING) */}
+            <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-200 rounded-2xl w-full max-w-md text-left flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs font-extrabold text-blue-900">
+                  Pronto recibirás más información sobre tu evaluación médica y antidoping:
+                </p>
+                <p className="text-xs text-blue-800 font-medium mt-1 leading-relaxed">
+                  El equipo de Reclutamiento de CEPS se comunicará directamente contigo vía llamada o WhatsApp para coordinar tu cita, horario y los siguientes pasos para tu contratación.
+                </p>
+              </div>
+            </div>
+
             {/* ACCIONES DE SEGUIMIENTO */}
             <div className="flex flex-col gap-3 w-full max-w-md">
               <div className="flex flex-col sm:flex-row items-center gap-3 w-full">

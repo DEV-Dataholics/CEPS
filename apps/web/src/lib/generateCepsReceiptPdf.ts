@@ -173,16 +173,16 @@ export function generateCepsReceiptPdf(data: ComprobanteCepsData): void {
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(10)
   doc.setTextColor(180, 83, 9)
-  doc.text('INDICACIONES OBLIGATORIAS PARA TU EVALUACIÓN Y CONTRATACIÓN', 25, yOffset + 14)
+  doc.text('INDICACIONES DE EVALUACIÓN Y CONTACTO DE RECLUTAMIENTO', 25, yOffset + 14)
 
   doc.setFontSize(8.5)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(69, 26, 3)
-  doc.text('1. Preséntate en ayuno a las 8:00 AM para el Examen Médico y Antidoping de 5 parámetros.', 25, yOffset + 21)
-  doc.text('2. Deberás presentar en original y copia: INE vigente, Acta de Nacimiento y Comprobante de Domicilio.', 25, yOffset + 27)
-  doc.text('3. Muestra este comprobante con tu Folio en el módulo o recepción central de CEPS.', 25, yOffset + 33)
-  doc.text('4. Dudas o confirmación de transporte: Comunícate al módulo vía WhatsApp con tu número de folio.', 25, yOffset + 39)
-  doc.text('5. Dirección Central: Oficinas CEPS Paso del Norte, Ciudad Juárez, Chih.', 25, yOffset + 45)
+  doc.text('1. Pronto recibirás más información sobre tu evaluación médica y examen de antidoping.', 25, yOffset + 21)
+  doc.text('2. El equipo de Reclutamiento de CEPS te contactará directamente vía telefónica o WhatsApp.', 25, yOffset + 27)
+  doc.text('3. Te indicarán fecha, horario y ubicación de tu valoración sin necesidad de agendar cita previa.', 25, yOffset + 33)
+  doc.text('4. Ten a la mano original y copia de: INE vigente, Acta de Nacimiento y Comprobante de Domicilio.', 25, yOffset + 39)
+  doc.text('5. Conserva este comprobante oficial con tu Folio de aspirante para cualquier aclaración.', 25, yOffset + 45)
 
   // 8. Sello de Seguridad y Pie de Página
   doc.setFontSize(7.5)
