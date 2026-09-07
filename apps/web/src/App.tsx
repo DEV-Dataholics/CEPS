@@ -2,11 +2,12 @@ import React, { useState } from 'react'
 import { UiKitDemo } from './pages/UiKitDemo'
 import { CandidateRegistrationView } from './pages/CandidateRegistrationView'
 import { VacancyManagerView } from './pages/VacancyManagerView'
-import { Server, LayoutDashboard, CheckCircle2, AlertCircle, RefreshCw, UserPlus, Briefcase } from 'lucide-react'
+import { CandidateStatusTrackingView } from './pages/CandidateStatusTrackingView'
+import { Server, LayoutDashboard, CheckCircle2, AlertCircle, RefreshCw, UserPlus, Briefcase, Search } from 'lucide-react'
 import { api, type HealthCheckResponse } from './lib/api'
 
 export default function App() {
-  const [vista, setVista] = useState<'candidato' | 'vacantes' | 'uikit' | 'diagnostico'>('vacantes')
+  const [vista, setVista] = useState<'vacantes' | 'candidato' | 'tracking' | 'uikit' | 'diagnostico'>('vacantes')
   const [health, setHealth] = useState<HealthCheckResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -45,7 +46,7 @@ export default function App() {
             }`}
           >
             <Briefcase className="w-3.5 h-3.5" />
-            Gestor de Vacantes &amp; Bandeja
+            Gestor de Vacantes
           </button>
 
           <button
@@ -58,6 +59,18 @@ export default function App() {
           >
             <UserPlus className="w-3.5 h-3.5" />
             Portal Candidato
+          </button>
+
+          <button
+            onClick={() => setVista('tracking')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm ${
+              vista === 'tracking'
+                ? 'bg-[#D4AF37] text-[#0A162B]'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <Search className="w-3.5 h-3.5" />
+            Consultar Estatus (Folio)
           </button>
 
           <button
@@ -92,7 +105,9 @@ export default function App() {
       {vista === 'vacantes' ? (
         <VacancyManagerView />
       ) : vista === 'candidato' ? (
-        <CandidateRegistrationView />
+        <CandidateRegistrationView onConsultarEstatus={() => setVista('tracking')} />
+      ) : vista === 'tracking' ? (
+        <CandidateStatusTrackingView />
       ) : vista === 'uikit' ? (
         <UiKitDemo />
       ) : (

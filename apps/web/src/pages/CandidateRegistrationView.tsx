@@ -19,13 +19,20 @@ import {
   Sparkles,
   Trash2,
   X,
+  Search,
 } from 'lucide-react'
 import { LocationPicker } from '../components/LocationPicker'
 import { generateCepsReceiptPdf } from '../lib/generateCepsReceiptPdf'
 import { useCandidateStore } from '../store/candidateStore'
 import { useVacancyStore } from '../store/vacancyStore'
 
-export const CandidateRegistrationView: React.FC = () => {
+interface CandidateRegistrationViewProps {
+  onConsultarEstatus?: (folio: string) => void
+}
+
+export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps> = ({
+  onConsultarEstatus,
+}) => {
   const {
     pasoActual,
     formData,
@@ -944,6 +951,17 @@ export const CandidateRegistrationView: React.FC = () => {
                   Enviar Folio por WhatsApp
                 </button>
               </div>
+
+              {onConsultarEstatus && (
+                <button
+                  type="button"
+                  onClick={() => onConsultarEstatus(folioAsignado || '')}
+                  className="w-full py-3 bg-[#D4AF37] hover:bg-[#C59F2D] text-[#0A162B] rounded-xl text-sm font-extrabold transition shadow-md flex items-center justify-center gap-2"
+                >
+                  <Search className="w-4 h-4" />
+                  <span>Rastrear Estatus de mi Folio en Línea</span>
+                </button>
+              )}
 
               <button
                 type="button"

@@ -11,6 +11,7 @@ import {
   PlayCircle,
   FileCheck2,
   Building,
+  Tag,
 } from 'lucide-react'
 import { useVacancyStore, type AspiranteSolicitud } from '../store/vacancyStore'
 
@@ -130,12 +131,12 @@ export const ApplicantInbox: React.FC<ApplicantInboxProps> = ({ onDecidirCandida
           </div>
         </div>
 
-        {/* BARRA DE BÚSQUEDA */}
+        {/* BARRA DE BÚSQUEDA POR FOLIO O NOMBRE */}
         <div className="relative">
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
           <input
             type="text"
-            placeholder="Buscar por nombre, folio, colonia..."
+            placeholder="Buscar por Folio (ej. CEPS-2026-4892), nombre, colonia..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-[#0A162B] outline-none"
@@ -222,12 +223,15 @@ export const ApplicantInbox: React.FC<ApplicantInboxProps> = ({ onDecidirCandida
                     : 'border-slate-200 hover:border-slate-300'
                 }`}
               >
-                {/* FOLIO Y FECHA */}
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-mono font-extrabold px-2 py-0.5 rounded bg-[#0A162B] text-slate-100 text-[11px]">
-                    {asp.folio}
-                  </span>
-                  <span className="text-[11px] font-medium text-slate-500 flex items-center gap-1">
+                {/* PLACA INSIGNIA DE FOLIO DESTACADA */}
+                <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono font-extrabold text-xs px-2.5 py-1 rounded-lg bg-[#0A162B] text-[#D4AF37] border-2 border-[#D4AF37]/60 shadow-xs flex items-center gap-1.5">
+                      <Tag className="w-3.5 h-3.5 text-[#D4AF37]" />
+                      {asp.folio}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
                     <Clock className="w-3 h-3 text-slate-400" />
                     {asp.fechaEtiqueta}
                   </span>

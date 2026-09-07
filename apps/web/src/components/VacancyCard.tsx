@@ -150,19 +150,24 @@ export const VacancyCard: React.FC<VacancyCardProps> = ({
                     key={asp.id}
                     className="p-2 bg-white rounded-lg border border-slate-200 flex items-center justify-between text-xs text-slate-800 shadow-2xs"
                   >
-                    <div>
-                      <div className="font-extrabold text-[#0A162B]">
-                        {asp.nombre} {asp.apellidoPaterno}
-                      </div>
-                      <div className="text-[11px] font-mono text-slate-500">
-                        {asp.folio} &bull; {asp.telefono}
+                    <div className="flex items-center gap-2.5">
+                      <span className="font-mono font-extrabold text-[11px] px-2 py-0.5 rounded bg-[#0A162B] text-[#D4AF37] border border-[#D4AF37]/50 shadow-xs flex-shrink-0">
+                        {asp.folio}
+                      </span>
+                      <div>
+                        <div className="font-extrabold text-[#0A162B] text-xs">
+                          {asp.nombre} {asp.apellidoPaterno}
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-semibold">
+                          {asp.telefono} &bull; {asp.colonia}
+                        </div>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => desasignarAspirante(asp.id)}
                       title="Quitar de esta vacante y regresar a nuevas solicitudes"
-                      className="p-1 rounded text-red-600 hover:bg-red-50 transition"
+                      className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 hover:border-red-200 border border-transparent transition"
                     >
                       <UserX className="w-4 h-4" />
                     </button>
@@ -181,7 +186,7 @@ export const VacancyCard: React.FC<VacancyCardProps> = ({
             className="w-full py-2 bg-[#0A162B] hover:bg-slate-800 text-white rounded-xl text-xs font-extrabold transition shadow-md flex items-center justify-center gap-1.5 animate-in fade-in"
           >
             <UserPlus className="w-4 h-4 text-[#D4AF37]" />
-            <span>Asignar a {candidatoActivo.nombre.split(' ')[0]} aquí</span>
+            <span>Asignar a {candidatoActivo.nombre.split(' ')[0]} ({candidatoActivo.folio}) aquí</span>
           </button>
         )}
       </div>
