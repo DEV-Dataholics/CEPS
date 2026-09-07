@@ -19,6 +19,7 @@ export interface CandidateStoreState {
   mostrarGateEscaneo: boolean
   curpVerificada: boolean
   datosExtraidosCurp: ExtractedCurpData | null
+  esReingreso: boolean
 
   // Acciones
   setPaso: (paso: number) => void
@@ -31,12 +32,13 @@ export interface CandidateStoreState {
   setConfirmoVeracidad: (valor: boolean) => void
   setGuardando: (valor: boolean) => void
   setFolioAsignado: (folio: string | null) => void
+  setEsReingreso: (valor: boolean) => void
   reiniciarBorrador: () => void
   cargarDatosDemo: () => void
 
   // Acciones de Escáner
   setDatosExtraidosCurp: (datos: ExtractedCurpData | null) => void
-  confirmarAbordajeEscaneo: (datos: ExtractedCurpData) => void
+  confirmarAbordajeEscaneo: (datos: ExtractedCurpData, esReingreso?: boolean) => void
   activarReescaneo: () => void
   setMostrarGateEscaneo: (mostrar: boolean) => void
 
@@ -125,18 +127,22 @@ export const useCandidateStore = create<CandidateStoreState>()(
       mostrarGateEscaneo: true,
       curpVerificada: false,
       datosExtraidosCurp: null,
+      esReingreso: false,
 
       setPaso: (paso) => set({ pasoActual: paso }),
       siguientePaso: () => set((state) => ({ pasoActual: Math.min(state.pasoActual + 1, 6) })),
       anteriorPaso: () => set((state) => ({ pasoActual: Math.max(state.pasoActual - 1, 1) })),
 
+      setEsReingreso: (valor) => set({ esReingreso: valor }),
+
       // Acciones de Escáner
       setDatosExtraidosCurp: (datos) => set({ datosExtraidosCurp: datos }),
 
-      confirmarAbordajeEscaneo: (datos) =>
+      confirmarAbordajeEscaneo: (datos, esReingreso = false) =>
         set((state) => ({
           curpVerificada: true,
           datosExtraidosCurp: datos,
+          esReingreso,
           mostrarGateEscaneo: false,
           pasoActual: 1,
           formData: {
@@ -152,6 +158,14 @@ export const useCandidateStore = create<CandidateStoreState>()(
               (state.formData.rfc && state.formData.rfc.startsWith(datos.rfcBase)
                 ? state.formData.rfc
                 : datos.rfcBase),
+            domicilio: datos.domicilio
+              ? {
+                  ...state.formData.domicilio,
+                  calleNumero: datos.domicilio.calleNumero || state.formData.domicilio.calleNumero,
+                  colonia: datos.domicilio.colonia || state.formData.domicilio.colonia,
+                  codigoPostal: datos.domicilio.codigoPostal || state.formData.domicilio.codigoPostal,
+                }
+              : state.formData.domicilio,
           },
         })),
 

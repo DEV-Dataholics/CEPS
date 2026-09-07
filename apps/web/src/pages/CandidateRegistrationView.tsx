@@ -44,6 +44,7 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
     mostrarGateEscaneo,
     curpVerificada,
     datosExtraidosCurp,
+    esReingreso,
     confirmarAbordajeEscaneo,
     activarReescaneo,
     setPaso,
@@ -198,9 +199,13 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
     return (
       <div className="w-full flex-1 flex flex-col overflow-y-auto bg-slate-900">
         <DocumentScannerGate
-          onConfirmar={(datos) => {
-            confirmarAbordajeEscaneo(datos)
-            setToastMensaje('Identidad oficial verificada y precargada exitosamente.')
+          onConfirmar={(datos, reingreso) => {
+            confirmarAbordajeEscaneo(datos, reingreso)
+            setToastMensaje(
+              reingreso
+                ? 'Identidad precargada [AUTORIZADO COMO EXPEDIENTE DE REINGRESO].'
+                : 'Identidad oficial verificada y precargada exitosamente.'
+            )
             setTimeout(() => setToastMensaje(null), 3500)
           }}
         />
@@ -431,24 +436,56 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Banner de Verificación de Escáner */}
                   {curpVerificada && datosExtraidosCurp && (
-                    <div className="sm:col-span-2 bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs">
+                    <div
+                      className={`sm:col-span-2 border-2 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs ${
+                        esReingreso
+                          ? 'bg-amber-50 border-amber-400 text-amber-950'
+                          : 'bg-emerald-50 border-emerald-300 text-emerald-950'
+                      }`}
+                    >
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-emerald-100 border border-emerald-300 flex items-center justify-center flex-shrink-0 text-emerald-700">
+                        <div
+                          className={`w-8 h-8 rounded-xl border flex items-center justify-center flex-shrink-0 ${
+                            esReingreso
+                              ? 'bg-amber-100 border-amber-400 text-amber-800'
+                              : 'bg-emerald-100 border-emerald-300 text-emerald-700'
+                          }`}
+                        >
                           <CheckCircle2 className="w-5 h-5" />
                         </div>
                         <div>
-                          <span className="font-black text-emerald-950 text-xs block">
-                            Identidad Oficial Verificada por Escáner
-                          </span>
-                          <span className="text-emerald-800 text-[11px] font-semibold">
-                            {[formData.nombre, formData.apellidoPaterno, formData.apellidoMaterno].filter(Boolean).join(' ') || 'Aspirante'} &bull; CURP: {datosExtraidosCurp.curp} &bull; Nacimiento: {datosExtraidosCurp.fechaNacimiento} ({datosExtraidosCurp.nombreEntidad}) &bull; {datosExtraidosCurp.edad} años
+                          <div className="flex items-center gap-2">
+                            <span className="font-black text-xs block">
+                              Identidad Oficial Verificada por Escáner
+                            </span>
+                            {esReingreso && (
+                              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-amber-200 text-amber-900 border border-amber-400">
+                                Expediente de Reingreso
+                              </span>
+                            )}
+                          </div>
+                          <span
+                            className={`text-[11px] font-semibold ${
+                              esReingreso ? 'text-amber-800' : 'text-emerald-800'
+                            }`}
+                          >
+                            {[formData.nombre, formData.apellidoPaterno, formData.apellidoMaterno]
+                              .filter(Boolean)
+                              .join(' ') || 'Aspirante'}{' '}
+                            &bull; CURP: {datosExtraidosCurp.curp} &bull; Nacimiento:{' '}
+                            {datosExtraidosCurp.fechaNacimiento} ({datosExtraidosCurp.nombreEntidad}) &bull;{' '}
+                            {datosExtraidosCurp.edad} años
                           </span>
                         </div>
                       </div>
                       <button
                         type="button"
                         onClick={activarReescaneo}
-                        className="px-3 py-1.5 text-xs font-black bg-white text-emerald-900 border border-emerald-400 rounded-xl hover:bg-emerald-100 transition shadow-xs flex items-center gap-1.5"
+                        className={`px-3 py-1.5 text-xs font-black bg-white border rounded-xl hover:bg-slate-50 transition shadow-xs flex items-center gap-1.5 ${
+                          esReingreso
+                            ? 'text-amber-900 border-amber-400'
+                            : 'text-emerald-900 border-emerald-400'
+                        }`}
                       >
                         <QrCode className="w-3.5 h-3.5" />
                         Re-escanear

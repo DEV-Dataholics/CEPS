@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   Shield,
   Camera,
@@ -10,17 +10,27 @@ import {
   ChevronRight,
   RefreshCw,
   User,
-  FileText,
   QrCode,
+  ShieldCheck,
+  ShieldAlert,
+  AlertTriangle,
+  Check,
+  Barcode,
 } from 'lucide-react'
 import {
   parseCurp,
   parseSatQr,
+  CATALOGO_CURP_DEMO,
   type ExtractedCurpData,
 } from '../lib/mexicanIdParser'
+import {
+  verificarDuplicidadAspirante,
+  type ResultadoDuplicidad,
+} from '../lib/duplicityChecker'
+import { useVacancyStore } from '../store/vacancyStore'
 
 interface DocumentScannerGateProps {
-  onConfirmar: (datos: ExtractedCurpData) => void
+  onConfirmar: (datos: ExtractedCurpData, esReingreso?: boolean) => void
   onCancelar?: () => void
 }
 
@@ -38,16 +48,23 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
   const [apellidoPaternoInput, setApellidoPaternoInput] = useState('')
   const [apellidoMaternoInput, setApellidoMaternoInput] = useState('')
 
+  // Candado de Duplicidad y Reingreso
+  const [marcadoComoReingreso, setMarcadoComoReingreso] = useState(false)
+  const aspirantes = useVacancyStore((state) => state.aspirantes)
+
   // Estado de Cámara en Vivo
   const [camaraActiva, setCamaraActiva] = useState(true)
   const [camaraFacingMode, setCamaraFacingMode] = useState<'environment' | 'user'>('environment')
   const [camaraError, setCamaraError] = useState<string | null>(null)
   const [dispositivosDisponibles, setDispositivosDisponibles] = useState<MediaDeviceInfo[]>([])
 
-  // Entrada Manual de Respaldo
+  // Entrada Manual de Respaldo para CURP
   const [modoManual, setModoManual] = useState(false)
   const [inputCurpManual, setInputCurpManual] = useState('')
   const [errorCurpManual, setErrorCurpManual] = useState<string | null>(null)
+
+  // Entrada Manual de Respaldo para RFC
+  const [inputRfcManual, setInputRfcManual] = useState('')
 
   // Feedback de Escaneo Exitoso
   const [escaneoExitosoAnim, setEscaneoExitosoAnim] = useState(false)
@@ -61,7 +78,7 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
   const ultimoKeyTimeRef = useRef<number>(0)
 
   // ---------------------------------------------------------------------------
-  // 1. Manejo del Stream de la Cámara Web / Tablet con Efecto Asíncrono
+  // 1. Manejo del Stream de la Cámara Web / Tablet
   // ---------------------------------------------------------------------------
   useEffect(() => {
     let streamActivo: MediaStream | null = null
@@ -70,7 +87,7 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
     if (camaraActiva && etapa !== 'confirmacion') {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         Promise.resolve().then(() => {
-          setCamaraError('El navegador no soporta acceso a la cámara de video en vivo.')
+          setCamaraError('El dispositivo no soporta acceso a la cámara de video en vivo.')
         })
         return
       }
@@ -124,13 +141,13 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
   }, [camaraActiva, camaraFacingMode, etapa])
 
   // ---------------------------------------------------------------------------
-  // 2. Procesamiento de Texto Detectado (Cámara o Pistola Láser)
+  // 2. Procesamiento de Texto Detectado (Cámara, Lector Láser o Demo)
   // ---------------------------------------------------------------------------
   const procesarTextoDetectado = useCallback(
     (rawString: string) => {
       if (!rawString || rawString.trim().length === 0) return
 
-      // Disparar destello visual
+      // Destello visual de éxito
       setEscaneoExitosoAnim(true)
       setTimeout(() => setEscaneoExitosoAnim(false), 800)
 
@@ -147,9 +164,6 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
         const satData = parseSatQr(rawString)
         if (satData) {
           setRfcCompleto(satData.rfc)
-          if (satData.nombre) setNombreInput(satData.nombre)
-          if (satData.apellidoPaterno) setApellidoPaternoInput(satData.apellidoPaterno)
-          if (satData.apellidoMaterno) setApellidoMaternoInput(satData.apellidoMaterno)
           if (curpExtraida) {
             setCurpExtraida({
               ...curpExtraida,
@@ -173,7 +187,6 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
   useEffect(() => {
     let active = true
 
-    // Verificar si el navegador soporta la API nativa BarcodeDetector
     interface BarcodeDetectorType {
       detect: (image: ImageBitmapSource) => Promise<Array<{ rawValue: string }>>
     }
@@ -216,7 +229,7 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
             }
           }
         } catch {
-          // Ignorar cuadros borrosos o no decodificados
+          // Cuadro no decodificado
         }
       }
 
@@ -240,7 +253,6 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
   // ---------------------------------------------------------------------------
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignorar si el usuario está enfocado escribiendo en el input manual
       if (
         document.activeElement?.tagName === 'INPUT' ||
         document.activeElement?.tagName === 'TEXTAREA'
@@ -252,7 +264,6 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
       const diff = currentTime - ultimoKeyTimeRef.current
       ultimoKeyTimeRef.current = currentTime
 
-      // Los lectores físicos envían teclas con menos de 45ms entre sí
       if (diff > 100) {
         bufferLectorRef.current = ''
       }
@@ -295,10 +306,34 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
   }
 
   // ---------------------------------------------------------------------------
-  // 6. Confirmación Final y Transición al Formulario
+  // 6. Chequeo Reactivo de Duplicidad y Detección de Reingreso
+  // ---------------------------------------------------------------------------
+  const resultadoDuplicidad: ResultadoDuplicidad | null = useMemo(() => {
+    if (!curpExtraida) return null
+    const datosParaChequeo: ExtractedCurpData = {
+      ...curpExtraida,
+      nombre: nombreInput.trim().toUpperCase(),
+      apellidoPaterno: apellidoPaternoInput.trim().toUpperCase(),
+      apellidoMaterno: apellidoMaternoInput.trim().toUpperCase(),
+      nombreCompleto: [nombreInput, apellidoPaternoInput, apellidoMaternoInput]
+        .filter(Boolean)
+        .join(' ')
+        .trim()
+        .toUpperCase(),
+    }
+    return verificarDuplicidadAspirante(datosParaChequeo, aspirantes)
+  }, [curpExtraida, nombreInput, apellidoPaternoInput, apellidoMaternoInput, aspirantes])
+
+  // ---------------------------------------------------------------------------
+  // 7. Confirmación Final y Transición al Formulario
   // ---------------------------------------------------------------------------
   const manejarConfirmarFinal = () => {
     if (!curpExtraida) return
+
+    // Bloqueo estricto: si es duplicado y no está autorizado como reingreso, no permitir avanzar
+    if (resultadoDuplicidad?.esDuplicadoCurp && !marcadoComoReingreso) {
+      return
+    }
 
     const nom = nombreInput.trim().toUpperCase()
     const pat = apellidoPaternoInput.trim().toUpperCase()
@@ -314,7 +349,7 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
       rfcCompleto: rfcCompleto || curpExtraida.rfcCompleto,
     }
 
-    onConfirmar(datosFinales)
+    onConfirmar(datosFinales, marcadoComoReingreso)
   }
 
   return (
@@ -339,7 +374,7 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                 CEPS Paso del Norte &bull; Abordaje en Campo
               </h2>
               <p className="text-[11px] text-[#D4AF37] font-bold tracking-widest uppercase">
-                Estación de Escaneo y Validación de Identidad
+                Validación de Identidad &bull; CURP &amp; RFC Oficial
               </p>
             </div>
           </div>
@@ -347,30 +382,31 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
           {/* Indicador de Estado del Lector Láser */}
           <div className="hidden sm:flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700 text-[11px] font-bold text-slate-300">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>Lector Láser HID Activo</span>
+            <span>Lector Láser HID Listo</span>
           </div>
         </div>
 
         {/* ========================================================================= */}
-        {/* PASO 1: ESCANEO DE CURP OBLIGATORIA                                       */}
+        {/* PASO 1: ESCANEO DE CURP OFICIAL (RENAPO)                                  */}
         {/* ========================================================================= */}
         {etapa === 'curp' && (
           <div className="p-6 flex flex-col items-center space-y-5">
             <div className="text-center space-y-1">
-              <span className="text-[11px] font-black text-[#D4AF37] uppercase tracking-widest bg-amber-500/10 px-3 py-1 rounded-full border border-[#D4AF37]/30">
-                Paso 1 de 2: Documento Obligatorio
+              <span className="text-[11px] font-black text-[#D4AF37] uppercase tracking-widest bg-amber-500/10 px-3 py-1 rounded-full border border-[#D4AF37]/30 flex items-center gap-1.5 w-fit mx-auto">
+                <Barcode className="w-3.5 h-3.5 text-[#D4AF37]" />
+                Paso 1 de 2: Constancia Oficial de CURP
               </span>
               <h3 className="text-lg sm:text-xl font-extrabold text-white mt-2">
-                Escanea la CURP o Código de tu INE
+                Escanea el Código de la Constancia de CURP
               </h3>
               <p className="text-xs text-slate-400 max-w-md mx-auto">
-                Apunta la cámara al código QR de la constancia de CURP, al código de barras
-                posterior de la credencial de elector (INE) o dispara con la pistola lectora.
+                Apunta al código QR o de barras de la constancia oficial de RENAPO. Extraeremos
+                de inmediato tu CURP, Nombre Completo, fecha de nacimiento y entidad.
               </p>
             </div>
 
             {/* Visor de Cámara en Vivo con Mira de Encuadre */}
-            <div className="relative w-full max-w-md h-64 sm:h-72 bg-black rounded-2xl overflow-hidden border-2 border-slate-700 shadow-inner flex items-center justify-center">
+            <div className="relative w-full max-w-md h-60 sm:h-64 bg-black rounded-2xl overflow-hidden border-2 border-slate-700 shadow-inner flex items-center justify-center">
               {camaraActiva && !camaraError ? (
                 <>
                   <video
@@ -381,16 +417,14 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                     className="w-full h-full object-cover"
                   />
 
-                  {/* Mira de Escaneo Táctica */}
+                  {/* Mira Cuadrada para QR / Barcode */}
                   <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-6">
-                    <div className="relative w-48 h-48 border-2 border-dashed border-[#D4AF37]/60 rounded-2xl flex items-center justify-center">
-                      {/* Esquinas Reforzadas */}
+                    <div className="relative w-48 h-48 border-2 border-dashed border-[#D4AF37]/70 rounded-2xl flex items-center justify-center">
                       <span className="absolute -top-1 -left-1 w-4 h-4 border-t-4 border-l-4 border-[#D4AF37]" />
                       <span className="absolute -top-1 -right-1 w-4 h-4 border-t-4 border-r-4 border-[#D4AF37]" />
                       <span className="absolute -bottom-1 -left-1 w-4 h-4 border-b-4 border-l-4 border-[#D4AF37]" />
                       <span className="absolute -bottom-1 -right-1 w-4 h-4 border-b-4 border-r-4 border-[#D4AF37]" />
 
-                      {/* Línea de Barrido Láser Animada */}
                       <div className="absolute left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent shadow-[0_0_12px_#D4AF37] animate-bounce" />
                     </div>
                   </div>
@@ -419,10 +453,7 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                     {camaraError || 'Cámara desactivada'}
                   </p>
                   <button
-                    onClick={() => {
-                      setCamaraActiva(true)
-                      iniciarCamara()
-                    }}
+                    onClick={() => setCamaraActiva(true)}
                     className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 text-slate-200 hover:bg-slate-700"
                   >
                     Reintentar Cámara
@@ -432,7 +463,7 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
             </div>
 
             {/* Alternar Entrada Manual de Respaldo */}
-            <div className="w-full max-w-md pt-2">
+            <div className="w-full max-w-md pt-1">
               {!modoManual ? (
                 <button
                   onClick={() => setModoManual(true)}
@@ -468,7 +499,7 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                       maxLength={18}
                       value={inputCurpManual}
                       onChange={(e) => setInputCurpManual(e.target.value.toUpperCase().trim())}
-                      placeholder="Ej: MECJ920514HCHDRR08"
+                      placeholder="Ej: RULG861230HCHZZS06"
                       className="flex-1 px-3 py-2 bg-slate-950 border-2 border-slate-700 rounded-xl font-mono text-xs font-bold text-white uppercase outline-none focus:border-[#D4AF37]"
                     />
                     <button
@@ -490,37 +521,56 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
               )}
             </div>
 
-            {/* Simuladores de Escaneo Rápido (Pruebas en Campo / Demostración) */}
+            {/* Simuladores de Escaneo con Formato Oficial RENAPO */}
             <div className="w-full max-w-md pt-2 border-t border-slate-800 flex flex-col gap-2">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider text-center">
-                Simulación de Escaneo de Credencial (Pruebas Rápidas)
+                Simulación con Formato Oficial RENAPO (Tuberías |)
               </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    procesarTextoDetectado(
-                      'IDMEX1812345677<<0123<<<<<<<<<<<\n9205148H2812312MEX<<08\nMEDINA<CASTILLO<<JORGE<ALEJANDRO<<<<<<'
-                    )
-                  }}
-                  className="py-2 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-[11px] font-bold text-slate-200 transition flex items-center justify-center gap-1.5 shadow-xs"
-                >
-                  <FileText className="w-3.5 h-3.5 text-[#D4AF37]" />
-                  <span>INE Reverso (MRZ)</span>
-                </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    procesarTextoDetectado(
-                      'https://consultas.curp.gob.mx/CurpSP/qr?curp=MECJ920514HCHDRR08&primerApellido=MEDINA&segundoApellido=CASTILLO&nombres=JORGE%20ALEJANDRO'
-                    )
-                  }}
-                  className="py-2 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-[11px] font-bold text-slate-200 transition flex items-center justify-center gap-1.5 shadow-xs"
-                >
-                  <QrCode className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>QR RENAPO Oficial</span>
-                </button>
+              <div className="grid grid-cols-1 gap-2">
+                {CATALOGO_CURP_DEMO.map((demo) => {
+                  const esDuplicado = (aspirantes || []).some(
+                    (a) =>
+                      Boolean(
+                        a?.curp &&
+                          demo?.curp &&
+                          a.curp.trim().toUpperCase() === demo.curp.trim().toUpperCase()
+                      )
+                  )
+
+                  return (
+                    <button
+                      key={demo.id}
+                      type="button"
+                      onClick={() => procesarTextoDetectado(demo.rawCurpText)}
+                      className={`p-2.5 rounded-xl border text-left transition flex items-center justify-between gap-2 ${
+                        esDuplicado
+                          ? 'bg-rose-950/30 hover:bg-rose-900/40 border-rose-500/40'
+                          : 'bg-emerald-950/30 hover:bg-emerald-900/40 border-emerald-500/40'
+                      }`}
+                    >
+                      <div className="flex flex-col">
+                        <span className="font-extrabold text-xs text-white flex items-center gap-1.5">
+                          <QrCode className="w-3.5 h-3.5 text-[#D4AF37]" />
+                          {demo.titulo}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          {demo.curp} &bull; {demo.subtitulo}
+                        </span>
+                      </div>
+
+                      <span
+                        className={`text-[9px] font-black uppercase px-2 py-0.5 rounded whitespace-nowrap ${
+                          esDuplicado
+                            ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                            : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        }`}
+                      >
+                        {esDuplicado ? 'Alerta Reingreso' : 'Aspirante Nuevo'}
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
           </div>
@@ -534,49 +584,70 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
             <div className="text-center space-y-1">
               <span className="text-[11px] font-black text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/30 flex items-center gap-1.5 w-fit mx-auto">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                CURP Verificada: {curpExtraida.curp}
+                CURP RENAPO Verificada: {curpExtraida.curp}
               </span>
               <h3 className="text-lg sm:text-xl font-extrabold text-white mt-2">
-                ¿Cuentas con tu Cédula de Situación Fiscal (SAT)?
+                ¿Cuentas con tu Cédula del SAT o RFC con Homoclave?
               </h3>
               <p className="text-xs text-slate-400 max-w-md mx-auto">
-                Escanea el código QR de tu constancia del SAT para registrar tu homoclave
-                oficial completa de 13 caracteres, o continúa con tu RFC base prellenado.
+                Escanea el código QR de tu constancia o ingresa tu RFC completo de 13 posiciones
+                para registrar tu homoclave oficial, o continúa con tu RFC base prellenado.
               </p>
             </div>
 
-            {/* Visor de Cámara para Cédula SAT */}
-            <div className="relative w-full max-w-md h-56 bg-black rounded-2xl overflow-hidden border-2 border-slate-700 flex items-center justify-center">
-              <video
-                ref={videoRef}
-                playsInline
-                autoPlay
-                muted
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-4">
-                <div className="w-40 h-40 border-2 border-dashed border-emerald-400/70 rounded-2xl flex items-center justify-center">
-                  <div className="absolute left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_12px_#34D399] animate-bounce" />
-                </div>
+            {/* Entrada Rápida de RFC con Homoclave */}
+            <div className="w-full max-w-md bg-slate-900 p-4 rounded-2xl border border-slate-700 space-y-3">
+              <label className="text-xs font-bold text-slate-300 block">
+                RFC con Homoclave (13 Caracteres):
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  maxLength={13}
+                  value={inputRfcManual}
+                  onChange={(e) => setInputRfcManual(e.target.value.toUpperCase().trim())}
+                  placeholder={`Ej: ${curpExtraida.rfcBase}7C5`}
+                  className="flex-1 px-3 py-2 bg-slate-950 border-2 border-slate-700 rounded-xl font-mono text-xs font-bold text-white uppercase outline-none focus:border-[#D4AF37]"
+                />
+                <button
+                  type="button"
+                  disabled={inputRfcManual.length !== 13}
+                  onClick={() => {
+                    procesarTextoDetectado(inputRfcManual)
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-black bg-emerald-500 text-slate-950 hover:bg-emerald-400 transition disabled:opacity-50"
+                >
+                  Registrar RFC
+                </button>
               </div>
             </div>
 
-            {/* Botones de Decisión */}
-            <div className="w-full max-w-md flex flex-col gap-2.5 pt-2">
+            {/* Botones de Decisión Táctica */}
+            <div className="w-full max-w-md flex flex-col gap-2.5 pt-1">
               <button
                 type="button"
                 onClick={() => {
-                  procesarTextoDetectado(
-                    'https://siat.sat.gob.mx/app/qr/faces/pages/mobile/validadorqr.jsf?D1=10&D2=1&D3=1412038198_MECJ920514QR3'
-                  )
+                  // Simular RFC con homoclave representativo
+                  const rfcSimulado =
+                    curpExtraida.curp === 'RULG861230HCHZZS06'
+                      ? 'RULG8612307C5'
+                      : `${curpExtraida.rfcBase}QR3`
+                  procesarTextoDetectado(rfcSimulado)
                 }}
                 className="w-full py-2.5 px-4 rounded-xl text-xs font-black bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition border border-emerald-500/40 flex items-center justify-center gap-2"
               >
                 <FileCheck className="w-4 h-4 text-emerald-400" />
-                <span>Simular Escaneo Cédula SAT (RFC con Homoclave QR3)</span>
+                <span>
+                  Simular Escaneo RFC con Homoclave (
+                  {curpExtraida.curp === 'RULG861230HCHZZS06'
+                    ? 'RULG8612307C5'
+                    : `${curpExtraida.rfcBase}QR3`}
+                  )
+                </span>
               </button>
 
               <button
+                type="button"
                 onClick={() => setEtapa('confirmacion')}
                 className="w-full py-2.5 px-4 rounded-xl text-xs font-extrabold bg-slate-800 text-slate-200 hover:bg-slate-700 transition border border-slate-600 flex items-center justify-center gap-2"
               >
@@ -588,7 +659,7 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
         )}
 
         {/* ========================================================================= */}
-        {/* PASO 3: FICHA DE CONFIRMACIÓN TÁCTICA DE DATOS EXTRAÍDOS                  */}
+        {/* PASO 3: FICHA DE CONFIRMACIÓN TÁCTICA & CANDADOS DE DUPLICIDAD            */}
         {/* ========================================================================= */}
         {etapa === 'confirmacion' && curpExtraida && (
           <div className="p-6 sm:p-8 flex flex-col space-y-6">
@@ -597,13 +668,90 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                 Confirmación de Abordaje Táctico
               </span>
               <h3 className="text-xl sm:text-2xl font-black text-white mt-1">
-                Datos Demográficos Oficiales Extraídos
+                Datos Demográficos Oficiales Verificados
               </h3>
               <p className="text-xs text-slate-400 max-w-md mx-auto">
-                Revisa los datos decodificados de la CURP oficial. Al confirmar, estos
+                Revisa los datos decodificados de la constancia de RENAPO. Al confirmar, estos
                 campos se prellenarán y verificarán en tu solicitud digital.
               </p>
             </div>
+
+            {/* CANDADO DE DUPLICIDAD / REINGRESO */}
+            {resultadoDuplicidad && (
+              <div className="w-full">
+                {resultadoDuplicidad.esDuplicadoCurp ? (
+                  <div className="bg-rose-950/40 border-2 border-rose-500 p-4 sm:p-5 rounded-2xl shadow-xl space-y-3">
+                    <div className="flex items-center gap-3 text-rose-400 border-b border-rose-800/80 pb-2.5">
+                      <ShieldAlert className="w-6 h-6 flex-shrink-0 animate-pulse text-rose-500" />
+                      <div>
+                        <h4 className="font-black text-xs sm:text-sm text-white uppercase tracking-wide">
+                          Alerta de Candado: Registro Duplicado / Reingreso Detectado
+                        </h4>
+                        <p className="text-[11px] text-rose-300 font-semibold">
+                          Esta CURP ya cuenta con un expediente histórico en la base operativa.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Ficha del Expediente Previo */}
+                    <div className="bg-[#060E1C] p-3 rounded-xl border border-rose-900/60 grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold block uppercase">Folio Previo:</span>
+                        <span className="font-mono font-black text-[#D4AF37]">{resultadoDuplicidad.folioExistente}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold block uppercase">Estatus Actual:</span>
+                        <span className="font-extrabold text-white capitalize">{resultadoDuplicidad.estatusExistente}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold block uppercase">Puesto Asignado:</span>
+                        <span className="font-extrabold text-slate-200">{resultadoDuplicidad.puestoExistente}</span>
+                      </div>
+                      <div className="sm:col-span-2">
+                        <span className="text-[10px] text-slate-400 font-bold block uppercase">Módulo de Captura:</span>
+                        <span className="font-extrabold text-slate-300">{resultadoDuplicidad.moduloExistente}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 font-bold block uppercase">Fecha de Registro:</span>
+                        <span className="font-extrabold text-slate-300">{resultadoDuplicidad.fechaRegistroExistente}</span>
+                      </div>
+                    </div>
+
+                    {/* Control de Desbloqueo / Autorización como Reingreso */}
+                    <label className="flex items-start gap-3 p-3 bg-slate-900/90 border border-rose-400/50 rounded-xl cursor-pointer hover:bg-slate-900 transition">
+                      <input
+                        type="checkbox"
+                        checked={marcadoComoReingreso}
+                        onChange={(e) => setMarcadoComoReingreso(e.target.checked)}
+                        className="w-4 h-4 mt-0.5 accent-rose-500 rounded cursor-pointer"
+                      />
+                      <span className="text-xs font-bold text-rose-200">
+                        Autorizar trámite y turnar a Supervisión como <strong className="text-white">EXPEDIENTE DE REINGRESO</strong>.
+                      </span>
+                    </label>
+                  </div>
+                ) : resultadoDuplicidad.esHomonimo ? (
+                  <div className="bg-amber-950/40 border-2 border-amber-500 p-4 rounded-2xl shadow-xl flex items-center gap-3">
+                    <AlertTriangle className="w-6 h-6 text-amber-400 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-black text-xs text-white uppercase">
+                        Advertencia de Homónimo
+                      </h4>
+                      <p className="text-[11px] text-amber-200">
+                        Existe un registro con el mismo nombre pero diferente CURP. Se permite el avance pero se marcará para revisión de mesa de control.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-emerald-950/30 border border-emerald-500/50 p-3 rounded-xl flex items-center gap-2.5">
+                    <ShieldCheck className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                    <span className="text-xs font-bold text-emerald-300">
+                      Candado de Duplicidad Limpio: No registra antecedentes previos en la base institucional.
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Ficha Táctica de Identidad */}
             <div className="bg-[#060E1C] border-2 border-[#D4AF37] p-5 sm:p-6 rounded-2xl shadow-xl space-y-4">
@@ -615,7 +763,7 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                   </span>
                 </div>
                 <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
-                  ✓ Verificada
+                  ✓ Verificada RENAPO
                 </span>
               </div>
 
@@ -627,8 +775,9 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                     Nombre Completo del Aspirante
                   </span>
                   {curpExtraida.nombre ? (
-                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/50 px-2 py-0.5 rounded">
-                      ✓ Extraído de Documento
+                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/50 px-2 py-0.5 rounded flex items-center gap-1">
+                      <Check className="w-3 h-3 text-emerald-400" />
+                      Extraído de Constancia RENAPO
                     </span>
                   ) : (
                     <span className="text-[10px] font-bold text-amber-400 bg-amber-950/60 border border-amber-500/50 px-2 py-0.5 rounded">
@@ -645,7 +794,7 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                     <input
                       type="text"
                       required
-                      placeholder="Ej: JORGE ALEJANDRO"
+                      placeholder="Ej: GUSTAVO ALONSO"
                       value={nombreInput}
                       onChange={(e) => setNombreInput(e.target.value.toUpperCase())}
                       className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs font-bold text-white uppercase outline-none focus:border-[#D4AF37]"
@@ -659,7 +808,7 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                     <input
                       type="text"
                       required
-                      placeholder="Ej: MEDINA"
+                      placeholder="Ej: RUIZ"
                       value={apellidoPaternoInput}
                       onChange={(e) => setApellidoPaternoInput(e.target.value.toUpperCase())}
                       className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs font-bold text-white uppercase outline-none focus:border-[#D4AF37]"
@@ -673,7 +822,7 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                     <input
                       type="text"
                       required
-                      placeholder="Ej: CASTILLO"
+                      placeholder="Ej: LOZANO"
                       value={apellidoMaternoInput}
                       onChange={(e) => setApellidoMaternoInput(e.target.value.toUpperCase())}
                       className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs font-bold text-white uppercase outline-none focus:border-[#D4AF37]"
@@ -734,11 +883,14 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
             {/* Acciones de Confirmación */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
               <button
+                type="button"
                 onClick={() => {
                   setEtapa('curp')
                   setCurpExtraida(null)
                   setRfcCompleto(null)
                   setInputCurpManual('')
+                  setInputRfcManual('')
+                  setMarcadoComoReingreso(false)
                 }}
                 className="w-full sm:w-auto py-2.5 px-4 rounded-xl text-xs font-bold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 transition flex items-center justify-center gap-1.5"
               >
@@ -746,13 +898,27 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                 Escanear Otro Documento
               </button>
 
-              <button
-                onClick={manejarConfirmarFinal}
-                className="w-full sm:w-auto py-3 px-6 rounded-xl text-xs font-black bg-[#D4AF37] text-[#0A162B] hover:bg-amber-400 transition shadow-xl hover:scale-102 flex items-center justify-center gap-2"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                Confirmar e Iniciar Solicitud Digital
-              </button>
+              <div className="w-full sm:w-auto flex flex-col items-end gap-1">
+                <button
+                  type="button"
+                  onClick={manejarConfirmarFinal}
+                  disabled={Boolean(resultadoDuplicidad?.esDuplicadoCurp && !marcadoComoReingreso)}
+                  className={`w-full sm:w-auto py-3 px-6 rounded-xl text-xs font-black transition shadow-xl flex items-center justify-center gap-2 ${
+                    resultadoDuplicidad?.esDuplicadoCurp && !marcadoComoReingreso
+                      ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                      : 'bg-[#D4AF37] text-[#0A162B] hover:bg-amber-400 hover:scale-102 cursor-pointer'
+                  }`}
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Confirmar e Iniciar Solicitud Digital</span>
+                </button>
+
+                {resultadoDuplicidad?.esDuplicadoCurp && !marcadoComoReingreso && (
+                  <span className="text-[10px] text-rose-400 font-bold">
+                    * Requiere autorizar expediente de reingreso para continuar
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         )}
