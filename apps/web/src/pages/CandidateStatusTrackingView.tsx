@@ -11,17 +11,32 @@ import {
   ArrowRight,
   User,
   Sparkles,
+  X,
+  RotateCcw,
 } from 'lucide-react'
 import { useVacancyStore, type AspiranteSolicitud } from '../store/vacancyStore'
 import { generateCepsReceiptPdf } from '../lib/generateCepsReceiptPdf'
 
-export const CandidateStatusTrackingView: React.FC = () => {
+interface CandidateStatusTrackingViewProps {
+  initialFolio?: string
+}
+
+export const CandidateStatusTrackingView: React.FC<CandidateStatusTrackingViewProps> = ({
+  initialFolio = '',
+}) => {
   const { aspirantes, vacantes } = useVacancyStore()
-  const [folioBusqueda, setFolioBusqueda] = useState<string>('CEPS-2026-4892')
+  const [folioBusqueda, setFolioBusqueda] = useState<string>(initialFolio)
   const [candidatoEncontrado, setCandidatoEncontrado] = useState<AspiranteSolicitud | null>(() => {
-    return aspirantes.find((a) => a.folio.toUpperCase() === 'CEPS-2026-4892') || aspirantes[0] || null
+    if (!initialFolio) return null
+    return aspirantes.find((a) => a.folio.toUpperCase() === initialFolio.toUpperCase()) || null
   })
   const [errorBusqueda, setErrorBusqueda] = useState<string | null>(null)
+
+  const handleSalirConsulta = () => {
+    setCandidatoEncontrado(null)
+    setFolioBusqueda('')
+    setErrorBusqueda(null)
+  }
 
   const handleBuscar = (e: React.FormEvent) => {
     e.preventDefault()
@@ -101,9 +116,22 @@ export const CandidateStatusTrackingView: React.FC = () => {
       <main className="max-w-4xl w-full mx-auto p-4 sm:p-6 flex-1 flex flex-col gap-6">
         {/* BUSCADOR DE FOLIO DE ALTO IMPACTO */}
         <div className="bg-white p-6 rounded-2xl border-2 border-slate-300 shadow-md">
-          <h2 className="text-sm font-extrabold text-[#0A162B] mb-2">
-            Ingresa tu Folio de Candidato o Teléfono Celular
-          </h2>
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <h2 className="text-sm font-extrabold text-[#0A162B]">
+              Ingresa tu Folio de Candidato o Teléfono Celular
+            </h2>
+            {candidatoEncontrado && (
+              <button
+                type="button"
+                onClick={handleSalirConsulta}
+                className="text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1 transition"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Limpiar Consulta</span>
+              </button>
+            )}
+          </div>
+
           <form onSubmit={handleBuscar} className="flex flex-col sm:flex-row gap-2.5">
             <div className="relative flex-1">
               <Search className="w-5 h-5 text-slate-400 absolute left-3.5 top-3.5" />
@@ -112,8 +140,18 @@ export const CandidateStatusTrackingView: React.FC = () => {
                 value={folioBusqueda}
                 onChange={(e) => setFolioBusqueda(e.target.value)}
                 placeholder="Ej. CEPS-2026-4892 o tu teléfono a 10 dígitos..."
-                className="w-full pl-11 pr-4 py-3 bg-[#F8FAFC] border-2 border-slate-300 rounded-xl font-mono text-sm font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/10 outline-none uppercase placeholder:normal-case"
+                className="w-full pl-11 pr-10 py-3 bg-[#F8FAFC] border-2 border-slate-300 rounded-xl font-mono text-sm font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/10 outline-none uppercase placeholder:normal-case"
               />
+              {folioBusqueda && (
+                <button
+                  type="button"
+                  onClick={() => setFolioBusqueda('')}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                  title="Borrar texto"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
             <button
               type="submit"
@@ -124,32 +162,47 @@ export const CandidateStatusTrackingView: React.FC = () => {
             </button>
           </form>
 
-          {/* EJEMPLOS RÁPIDOS PARA PRUEBAS */}
-          <div className="mt-3 flex items-center gap-2 flex-wrap text-xs font-semibold text-slate-500">
-            <span>Folios de prueba rápida:</span>
-            {aspirantes.slice(0, 3).map((asp) => (
-              <button
-                key={asp.id}
-                type="button"
-                onClick={() => {
-                  setFolioBusqueda(asp.folio)
-                  setCandidatoEncontrado(asp)
-                  setErrorBusqueda(null)
-                }}
-                className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-[#0A162B] font-mono font-extrabold border border-slate-300 transition"
-              >
-                {asp.folio}
-              </button>
-            ))}
-          </div>
-
           {errorBusqueda && (
-            <div className="mt-4 p-3.5 bg-red-50 border-2 border-red-300 rounded-xl text-xs text-red-900 font-bold flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
-              <span>{errorBusqueda}</span>
+            <div className="mt-4 p-3.5 bg-red-50 border-2 border-red-300 rounded-xl text-xs text-red-900 font-bold flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                <span>{errorBusqueda}</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleSalirConsulta}
+                className="text-xs text-red-700 underline font-extrabold hover:text-red-900 ml-2"
+              >
+                Cerrar
+              </button>
             </div>
           )}
         </div>
+
+        {/* PANTALLA INICIAL GUÍA CUANDO NO HAY CONSULTA ACTIVA */}
+        {!candidatoEncontrado && !errorBusqueda && (
+          <div className="bg-white rounded-2xl border-2 border-slate-300 p-8 sm:p-12 text-center flex flex-col items-center justify-center shadow-xs">
+            <div className="w-14 h-14 rounded-2xl bg-[#0A162B] text-[#D4AF37] border-2 border-[#D4AF37] flex items-center justify-center mb-3 shadow-md">
+              <Search className="w-7 h-7" />
+            </div>
+            <h3 className="text-base sm:text-lg font-extrabold text-[#0A162B]">
+              Rastreo Oficial de Estatus de Solicitud
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-600 font-medium max-w-md mt-2 leading-relaxed">
+              Ingresa tu número de <strong className="text-slate-900 font-mono">Folio CEPS</strong> o tu <strong className="text-slate-900">teléfono celular</strong> registrado en el módulo para verificar la asignación de tu vacante y los próximos pasos de tu proceso.
+            </p>
+            <div className="mt-5 flex items-center gap-3 text-xs text-slate-500 font-semibold flex-wrap justify-center">
+              <span className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                Sin necesidad de contraseña
+              </span>
+              <span className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                Actualizado en tiempo real
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* DETALLE DEL ESTATUS DEL ASPIRANTE ENCONTRADO */}
         {candidatoEncontrado && (
@@ -178,8 +231,8 @@ export const CandidateStatusTrackingView: React.FC = () => {
                 </div>
               </div>
 
-              {/* BADGE DE ESTADO GLOBAL */}
-              <div>
+              {/* BADGES Y BOTÓN SALIR DE CONSULTA */}
+              <div className="flex items-center gap-2 flex-wrap sm:self-center">
                 {candidatoEncontrado.estatus === 'asignado' ? (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-400">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
@@ -196,6 +249,16 @@ export const CandidateStatusTrackingView: React.FC = () => {
                     En Revisión de Vacantes
                   </span>
                 )}
+
+                <button
+                  type="button"
+                  onClick={handleSalirConsulta}
+                  className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white border border-white/20 text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
+                  title="Salir de esta consulta"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  <span>Salir</span>
+                </button>
               </div>
             </div>
 
@@ -332,25 +395,36 @@ export const CandidateStatusTrackingView: React.FC = () => {
             </div>
 
             {/* ACCIONES Y CONTACTO DIRECTO */}
-            <div className="p-6 bg-[#F8FAFC] flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="p-6 bg-[#F8FAFC] flex flex-col sm:flex-row items-center justify-between gap-3">
               <button
                 type="button"
-                onClick={handleDescargarComprobante}
-                className="w-full sm:w-auto px-5 py-2.5 bg-white hover:bg-slate-50 border-2 border-slate-300 text-slate-900 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-2"
+                onClick={handleSalirConsulta}
+                className="w-full sm:w-auto px-4 py-2.5 bg-white hover:bg-slate-100 border-2 border-slate-300 text-slate-700 rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center gap-1.5"
               >
-                <Download className="w-4 h-4 text-slate-700" />
-                <span>Descargar Comprobante PDF (Folio {candidatoEncontrado.folio})</span>
+                <RotateCcw className="w-4 h-4 text-slate-500" />
+                <span>Salir y Consultar Otro Folio</span>
               </button>
 
-              <a
-                href={`https://api.whatsapp.com/send?text=Hola%20CEPS%2C%20quisiera%20informaci%C3%B3n%20sobre%20mi%20Folio%20*${candidatoEncontrado.folio}*%20a%20nombre%20de%20${encodeURIComponent(candidatoEncontrado.nombre + ' ' + candidatoEncontrado.apellidoPaterno)}`}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full sm:w-auto px-5 py-2.5 bg-[#059669] hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition shadow-md flex items-center justify-center gap-2"
-              >
-                <Share2 className="w-4 h-4" />
-                <span>Contactar a Reclutador por WhatsApp</span>
-              </a>
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={handleDescargarComprobante}
+                  className="w-full sm:w-auto px-4 py-2.5 bg-white hover:bg-slate-50 border-2 border-slate-300 text-slate-900 rounded-xl text-xs font-bold transition shadow-sm flex items-center justify-center gap-2"
+                >
+                  <Download className="w-4 h-4 text-slate-700" />
+                  <span>Descargar Comprobante PDF</span>
+                </button>
+
+                <a
+                  href={`https://api.whatsapp.com/send?text=Hola%20CEPS%2C%20quisiera%20informaci%C3%B3n%20sobre%20mi%20Folio%20*${candidatoEncontrado.folio}*%20a%20nombre%20de%20${encodeURIComponent(candidatoEncontrado.nombre + ' ' + candidatoEncontrado.apellidoPaterno)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full sm:w-auto px-5 py-2.5 bg-[#059669] hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition shadow-md flex items-center justify-center gap-2"
+                >
+                  <Share2 className="w-4 h-4" />
+                  <span>Contactar a Reclutador por WhatsApp</span>
+                </a>
+              </div>
             </div>
           </div>
         )}
