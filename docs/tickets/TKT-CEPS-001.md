@@ -27,7 +27,7 @@
 ### 4. CHECKLIST PREVIO A COMMIT / MERGE
 - [x] Reglas del orquestador y 5 skills (`vibe-coding-guard`, `ticket-tracking`, `expert-ux-ui`, `devops-security`, `ceps-brand-identity`) configuradas en `.agents/`.
 - [x] Documentación y diagnósticos de Fase 1 resguardados en `docs/`.
-- [ ] Backend CodeIgniter 4 inicializado en `apps/api/` con `.env.example`.
-- [ ] Frontend React/Vite inicializado en `apps/web/` con tipado estricto.
-- [ ] Script de compuerta `verificar.ps1` / `verificar.sh` validado en verde.
-- [ ] Repositorio Git inicializado y vinculado al repositorio privado `CEPS` en GitHub.
+- [x] Backend CodeIgniter 4 inicializado en `apps/api/` con `.env.example` y `.env`.
+- [x] Frontend React/Vite inicializado en `apps/web/` con tipado estricto y cliente `api.ts`.
+- [x] Script de compuerta `verificar.ps1` / `verificar.sh` validado en verde (0 errores, 0 warnings).
+- [x] Repositorio Git inicializado y vinculado al repositorio privado `CEPS` en GitHub (`https://github.com/gruizmetasolutions-cpu/CEPS`).
