@@ -1,0 +1,31 @@
+# Sistema de personalizaciones local (aislamiento total del control de versiones)
+/.agents/
+
+# Dependencias y compilados de Frontend
+/apps/web/node_modules/
+/apps/web/dist/
+/apps/web/test-results/
+
+# Dependencias y archivos generados de Backend (CodeIgniter 4)
+/apps/api/vendor/
+/apps/api/writable/cache/*
+/apps/api/writable/debugbar/*
+/apps/api/writable/logs/*
+/apps/api/writable/session/*
+/apps/api/writable/uploads/*
+!/apps/api/writable/**/index.html
+!/apps/api/writable/**/.gitkeep
+
+# Credenciales locales y entornos
+/apps/api/.env
+/apps/web/.env.local
+/apps/web/.env.*.local
+
+# Backups locales de base de datos
+*.sql
+*.sql.gz
+
+# Archivos de sistema operativo y temporales
+.DS_Store
+Thumbs.db
+*.log
