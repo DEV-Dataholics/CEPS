@@ -4,9 +4,87 @@ import type {
   ExpedienteGuardia,
   EstatusExpediente,
   CuestionarioEntrevistaRespuestas,
+  ExamenRazonamientoRespuestas,
   ExamenRazonamientoEvaluacion,
   AuditoriaIntegridad,
 } from '../types/dossierTypes'
+
+export const evaluarRazonamiento = (
+  razonamiento: ExamenRazonamientoRespuestas
+): ExamenRazonamientoEvaluacion => {
+  let erroresLectura = 0
+  if (razonamiento.dondeEncontroMochila !== 'En el parque') erroresLectura++
+  if (razonamiento.queHabiaEnMochila !== 'Una nota') erroresLectura++
+  if (razonamiento.queDeciaNota !== '"Gracias por cuidar mis cosas. Mi nombre es Ana"') erroresLectura++
+  if (razonamiento.comoSeSentioAna !== 'Agradecida') erroresLectura++
+
+  let erroresAritmetica = 0
+  if (razonamiento.op1_40_mas.trim() !== '40') erroresAritmetica++
+  if (razonamiento.op2_200_mas.trim() !== '250') erroresAritmetica++
+  if (razonamiento.op3_20_mas.trim() !== '25') erroresAritmetica++
+  if (razonamiento.op4_menos_60.trim() !== '80') erroresAritmetica++
+  if (razonamiento.op5_menos_50.trim() !== '200') erroresAritmetica++
+  if (razonamiento.op6_85_menos.trim() !== '45') erroresAritmetica++
+  if (razonamiento.op7_32_mas.trim() !== '0') erroresAritmetica++
+  if (razonamiento.op8_70_mas.trim() !== '35') erroresAritmetica++
+  if (razonamiento.op9_78_mas.trim() !== '22') erroresAritmetica++
+  if (razonamiento.op10_70_menos.trim() !== '30') erroresAritmetica++
+  if (razonamiento.op11_96_menos.trim() !== '60') erroresAritmetica++
+  if (razonamiento.op12_45_menos.trim() !== '20') erroresAritmetica++
+
+  let erroresLogica = 0
+  const pAuto = (razonamiento.palabraAuto || '').toLowerCase()
+  if (!pAuto.includes('no') && !pAuto.includes('o') && !pAuto.includes('incorrecto')) erroresLogica++
+
+  const pOvejas = (razonamiento.pastorOvejas || '').toLowerCase()
+  if (!pOvejas.includes('12') && !pOvejas.includes('doce') && !pOvejas.includes('todas')) erroresLogica++
+
+  const pTren = (razonamiento.trenSobrevivientes || '').toLowerCase()
+  if (
+    !pTren.includes('no se entierran') &&
+    !pTren.includes('vivos') &&
+    !pTren.includes('ningun') &&
+    !pTren.includes('sobreviven')
+  ) {
+    erroresLogica++
+  }
+
+  const pParadoja = (razonamiento.paradojaMentira || '').toLowerCase()
+  if (
+    !pParadoja.includes('paradoja') &&
+    !pParadoja.includes('ninguna') &&
+    !pParadoja.includes('contradic') &&
+    !pParadoja.includes('mentira') &&
+    !pParadoja.includes('trampa')
+  ) {
+    erroresLogica++
+  }
+
+  const pHuevo = (razonamiento.huevoGallo || '').toLowerCase()
+  if (
+    !pHuevo.includes('no ponen') &&
+    !pHuevo.includes('ningun') &&
+    !pHuevo.includes('gallo no') &&
+    !pHuevo.includes('gallina')
+  ) {
+    erroresLogica++
+  }
+
+  const totalErrores = erroresLectura + erroresAritmetica + erroresLogica
+  const aprobado = totalErrores <= 8
+
+  return {
+    erroresLectura,
+    erroresAritmetica,
+    erroresLogica,
+    totalErrores,
+    aprobado,
+    requiereComitePerfiles: !aprobado,
+    observaciones: aprobado
+      ? `Aprobó el examen con ${totalErrores} errores (máximo permitido: 8).`
+      : `Excedió el límite con ${totalErrores} errores. Requiere visto bueno de Comité de Perfiles.`,
+  }
+}
 
 export const calcularAuditoriaIntegridad = (
   cuestionario: CuestionarioEntrevistaRespuestas,

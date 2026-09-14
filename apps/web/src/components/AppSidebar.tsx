@@ -1,9 +1,9 @@
-import React from 'react'
 import {
   FolderArchive,
   Briefcase,
   SlidersHorizontal,
   UserPlus,
+  UserCheck,
   Search,
   Server,
   LayoutDashboard,
@@ -51,10 +51,10 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     departamento: string
   }> = [
     {
-      id: 'dossiers',
-      label: 'Expedientes de Guardias',
-      shortLabel: 'Expedientes',
-      icon: FolderArchive,
+      id: 'gestion_candidatos',
+      label: 'Gestión de Candidatos',
+      shortLabel: 'Candidatos',
+      icon: UserCheck,
       departamento: 'Recursos Humanos',
     },
     {
@@ -63,6 +63,13 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       shortLabel: 'Vacantes',
       icon: Briefcase,
       departamento: 'Operaciones',
+    },
+    {
+      id: 'dossiers',
+      label: 'Expedientes de Guardias',
+      shortLabel: 'Expedientes',
+      icon: FolderArchive,
+      departamento: 'Recursos Humanos',
     },
     {
       id: 'catalogos',

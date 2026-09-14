@@ -5,6 +5,7 @@ import { VacancyManagerView } from './pages/VacancyManagerView'
 import { CandidateStatusTrackingView } from './pages/CandidateStatusTrackingView'
 import { CatalogManagerView } from './pages/CatalogManagerView'
 import { GuardDossiersView } from './pages/GuardDossiersView'
+import { CandidateManagementView } from './pages/CandidateManagementView'
 import { AppSidebar } from './components/AppSidebar'
 import { AppHeader } from './components/AppHeader'
 import { FieldInterviewWizard } from './components/FieldInterviewWizard'
@@ -60,10 +61,14 @@ export default function App() {
         {/* Vista Activa */}
         <main
           className={`flex-1 min-w-0 flex flex-col ${
-            vistaEfectiva === 'dossiers' ? 'overflow-hidden' : 'overflow-y-auto'
+            vistaEfectiva === 'dossiers' || vistaEfectiva === 'gestion_candidatos'
+              ? 'overflow-hidden'
+              : 'overflow-y-auto'
           }`}
         >
-          {vistaEfectiva === 'vacantes' ? (
+          {vistaEfectiva === 'gestion_candidatos' ? (
+            <CandidateManagementView onNavegarAVacantes={() => setVista('vacantes')} />
+          ) : vistaEfectiva === 'vacantes' ? (
             <VacancyManagerView />
           ) : vistaEfectiva === 'dossiers' ? (
             <GuardDossiersView />

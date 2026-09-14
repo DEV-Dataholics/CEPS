@@ -9,6 +9,7 @@ export type RolOperativo =
   | 'admin_ti'
 
 export type VistaId =
+  | 'gestion_candidatos'
   | 'vacantes'
   | 'dossiers'
   | 'candidato'
@@ -37,8 +38,8 @@ export const METADATA_ROLES: Record<RolOperativo, InfoRol> = {
     departamento: 'Atracción de Talento',
     icono: '⚡',
     badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500',
-    vistasPermitidas: ['dossiers', 'tracking'],
-    vistaPorDefecto: 'dossiers',
+    vistasPermitidas: ['gestion_candidatos', 'dossiers', 'tracking'],
+    vistaPorDefecto: 'gestion_candidatos',
     permiteEntrevistaEnTablet: true,
   },
   supervision_rh: {
@@ -48,8 +49,8 @@ export const METADATA_ROLES: Record<RolOperativo, InfoRol> = {
     departamento: 'Recursos Humanos',
     icono: '📋',
     badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500',
-    vistasPermitidas: ['dossiers', 'vacantes', 'tracking'],
-    vistaPorDefecto: 'dossiers',
+    vistasPermitidas: ['gestion_candidatos', 'vacantes', 'dossiers', 'tracking'],
+    vistaPorDefecto: 'gestion_candidatos',
     permiteEntrevistaEnTablet: true,
   },
   direccion_operativa: {
@@ -59,7 +60,7 @@ export const METADATA_ROLES: Record<RolOperativo, InfoRol> = {
     departamento: 'Operaciones CEPS',
     icono: '🛡️',
     badgeColor: 'bg-amber-500/20 text-[#D4AF37] border-[#D4AF37]',
-    vistasPermitidas: ['vacantes', 'catalogos', 'dossiers'],
+    vistasPermitidas: ['vacantes', 'gestion_candidatos', 'catalogos', 'dossiers'],
     vistaPorDefecto: 'vacantes',
     permiteEntrevistaEnTablet: true,
   },
@@ -82,6 +83,7 @@ export const METADATA_ROLES: Record<RolOperativo, InfoRol> = {
     icono: '⚙️',
     badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500',
     vistasPermitidas: [
+      'gestion_candidatos',
       'vacantes',
       'dossiers',
       'catalogos',
@@ -90,7 +92,7 @@ export const METADATA_ROLES: Record<RolOperativo, InfoRol> = {
       'diagnostico',
       'uikit',
     ],
-    vistaPorDefecto: 'vacantes',
+    vistaPorDefecto: 'gestion_candidatos',
     permiteEntrevistaEnTablet: true,
   },
 }

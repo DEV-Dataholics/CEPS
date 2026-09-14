@@ -1,6 +1,37 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { type VacancyInput, type MotivoEspera } from '../schemas/vacancySchema'
+import type {
+  ExamenRazonamientoRespuestas,
+  ExamenRazonamientoEvaluacion,
+  CuestionarioEntrevistaRespuestas,
+  AuditoriaIntegridad,
+  ChecklistPapeleriaOriginal,
+  ExpedienteGuardia,
+} from '../types/dossierTypes'
+import { useDossierStore } from './dossierStore'
+
+export type EstatusAspirante = 'nuevo' | 'en_evaluacion' | 'activo' | 'asignado' | 'en_espera'
+
+export interface EvaluacionRazonamientoData {
+  respuestas: ExamenRazonamientoRespuestas
+  evaluacion: ExamenRazonamientoEvaluacion
+  fechaEvaluacion: string
+  evaluador: string
+}
+
+export interface CuestionarioIntegridadData {
+  respuestas: CuestionarioEntrevistaRespuestas
+  auditoria: AuditoriaIntegridad
+  fechaEvaluacion: string
+  evaluador: string
+}
+
+export interface AltaDispensaData {
+  autorizadaPor: string
+  motivo: string
+  fecha: string
+}
 
 export interface AspiranteSolicitud {
   id: string
@@ -20,10 +51,17 @@ export interface AspiranteSolicitud {
   zonaJuarez: string
   latitud: number
   longitud: number
-  estatus: 'nuevo' | 'asignado' | 'en_espera'
+  estatus: EstatusAspirante
   vacanteAsignadaId?: string
   motivoEspera?: MotivoEspera | string
   documentosAdjuntos: string[]
+
+  // Evaluaciones y Onboarding Oficial CEPS
+  evaluacionRazonamiento?: EvaluacionRazonamientoData
+  cuestionarioIntegridad?: CuestionarioIntegridadData
+  checklistPapeleria?: ChecklistPapeleriaOriginal
+  altaDispensa?: AltaDispensaData
+  fechaAlta?: string
 }
 
 export interface Vacante {
@@ -68,6 +106,12 @@ export interface VacancyStoreState {
   desasignarAspirante: (aspiranteId: string) => void
   ponerAspiranteEnEspera: (aspiranteId: string, motivo: MotivoEspera | string) => void
   reactivarAspiranteDeEspera: (aspiranteId: string) => void
+
+  // Ingesta y Evaluación en Gestión de Candidatos
+  guardarExamenRazonamiento: (candidatoId: string, data: EvaluacionRazonamientoData) => void
+  guardarCuestionarioIntegridad: (candidatoId: string, data: CuestionarioIntegridadData) => void
+  actualizarChecklistPapeleria: (candidatoId: string, checklist: ChecklistPapeleriaOriginal) => void
+  darDeAltaCandidato: (candidatoId: string, dispensa?: AltaDispensaData) => void
 
   // Ingesta desde Portal Candidato
   registrarAspiranteDesdePortal: (aspirante: Omit<AspiranteSolicitud, 'id'>) => void
@@ -365,7 +409,8 @@ const aspirantesIniciales: AspiranteSolicitud[] = [
     zonaJuarez: 'Suroriente',
     latitud: 31.6198,
     longitud: -106.3812,
-    estatus: 'nuevo',
+    estatus: 'activo',
+    fechaAlta: '2026-09-14',
     documentosAdjuntos: ['INE', 'RFC', 'No Penales'],
   },
   {
@@ -742,12 +787,216 @@ export const useVacancyStore = create<VacancyStoreState>()(
             a.id === aspiranteId
               ? {
                   ...a,
-                  estatus: 'nuevo' as const,
+                  estatus: 'en_evaluacion' as const,
                   motivoEspera: undefined,
                 }
               : a
           ),
         })),
+
+      guardarExamenRazonamiento: (candidatoId, data) =>
+        set((state) => ({
+          aspirantes: state.aspirantes.map((a) =>
+            a.id === candidatoId
+              ? {
+                  ...a,
+                  estatus: a.estatus === 'nuevo' ? ('en_evaluacion' as const) : a.estatus,
+                  evaluacionRazonamiento: data,
+                }
+              : a
+          ),
+        })),
+
+      guardarCuestionarioIntegridad: (candidatoId, data) =>
+        set((state) => ({
+          aspirantes: state.aspirantes.map((a) =>
+            a.id === candidatoId
+              ? {
+                  ...a,
+                  estatus: a.estatus === 'nuevo' ? ('en_evaluacion' as const) : a.estatus,
+                  cuestionarioIntegridad: data,
+                }
+              : a
+          ),
+        })),
+
+      actualizarChecklistPapeleria: (candidatoId, checklist) =>
+        set((state) => ({
+          aspirantes: state.aspirantes.map((a) =>
+            a.id === candidatoId
+              ? {
+                  ...a,
+                  checklistPapeleria: checklist,
+                }
+              : a
+          ),
+        })),
+
+      darDeAltaCandidato: (candidatoId, dispensa) => {
+        const fechaActualIso = new Date().toISOString()
+        const fechaHoyCorta = fechaActualIso.substring(0, 10)
+
+        set((state) => {
+          const aspirante = state.aspirantes.find((a) => a.id === candidatoId)
+          if (!aspirante) return state
+
+          // Si aún no existe en dossierStore, crear expediente oficial de guardia
+          try {
+            const nuevoExpediente: ExpedienteGuardia = {
+              id: `exp-${aspirante.folio.replace(/[^a-zA-Z0-9]/g, '')}-${Date.now().toString().slice(-4)}`,
+              folio: aspirante.folio,
+              estatus: 'aprobado_servicio',
+              fechaCreacion: fechaHoyCorta,
+              abordaje: {
+                nombre: aspirante.nombre,
+                apellidoPaterno: aspirante.apellidoPaterno,
+                apellidoMaterno: aspirante.apellidoMaterno,
+                telefono: aspirante.telefono,
+                edad: aspirante.edad || '30',
+                escolaridad: 'Secundaria',
+                puestoInteres: aspirante.puestoDeseado,
+                moduloAbordaje: aspirante.moduloAbordaje,
+                fecha: fechaHoyCorta,
+              },
+              examenRazonamiento: {
+                respuestas: aspirante.evaluacionRazonamiento?.respuestas ?? {
+                  dondeEncontroMochila: 'En el parque',
+                  queHabiaEnMochila: 'Una nota',
+                  queDeciaNota: '"Gracias por cuidar mis cosas. Mi nombre es Ana"',
+                  comoSeSentioAna: 'Agradecida',
+                  op1_40_mas: '40',
+                  op2_200_mas: '250',
+                  op3_20_mas: '25',
+                  op4_menos_60: '80',
+                  op5_menos_50: '200',
+                  op6_85_menos: '45',
+                  op7_32_mas: '0',
+                  op8_70_mas: '35',
+                  op9_78_mas: '22',
+                  op10_70_menos: '30',
+                  op11_96_menos: '60',
+                  op12_45_menos: '20',
+                  palabraAuto: 'No',
+                  pastorOvejas: '12',
+                  trenSobrevivientes: 'A los sobrevivientes no se les entierra',
+                  paradojaMentira: 'Paradoja',
+                  huevoGallo: 'Los gallos no ponen huevos',
+                },
+                evaluacion: aspirante.evaluacionRazonamiento?.evaluacion ?? {
+                  erroresLectura: 0,
+                  erroresAritmetica: 0,
+                  erroresLogica: 0,
+                  totalErrores: 0,
+                  aprobado: true,
+                  requiereComitePerfiles: false,
+                  observaciones: 'Aprobado satisfactoriamente en proceso de selección.',
+                },
+              },
+              cuestionarioEntrevista: {
+                respuestas: aspirante.cuestionarioIntegridad?.respuestas ?? {
+                  p1_valores: 'Honestidad, lealtad y disciplina operativa.',
+                  p2_experienciaSeguridad: 'si',
+                  p3_funcionesGuardia: 'Control de accesos y vigilancia patrimonial.',
+                  p4_reporteIncidente: 'jefe_grupo_ceps',
+                  p5_reaccionRobo: 'reporto_jefe',
+                  p6_motivoInteres: 'sueldo',
+                  p6_motivoInteresDetalle: 'Estabilidad y desarrollo profesional en CEPS.',
+                  p7_motivoRenuncia: 'Búsqueda de mejores prestaciones y crecimiento.',
+                  p8_descripcionExperiencia: 'Guardia intramuros y rondines industriales.',
+                  p9_autorizaReferencias: 'si',
+                  p10_nivelTolerancia: 9,
+                },
+                auditoria: aspirante.cuestionarioIntegridad?.auditoria ?? {
+                  riesgoRobo: 'bajo_confiable',
+                  apegoCadenaMando: 'optimo',
+                  calificacionTolerancia: 'optima',
+                  banderasRojas: [],
+                  dictamenReclutador: 'apto',
+                  notasConfidenciales: dispensa
+                    ? `ALTA AUTORIZADA CON DISPENSA POR RH: ${dispensa.motivo} (Autorizó: ${dispensa.autorizadaPor})`
+                    : 'Candidato apto. Cumplió al 100% con evaluaciones psicotécnicas e integridad.',
+                  evaluadoPor: dispensa?.autorizadaPor ?? 'Supervisión RH CEPS',
+                  fechaEvaluacion: fechaHoyCorta,
+                },
+              },
+              solicitudEmpleo: {
+                curp: aspirante.curp,
+                rfc: aspirante.rfc,
+                nss: '12948201948',
+                fechaNacimiento: '1992-05-14',
+                estadoCivil: 'Soltero',
+                calleNumero: 'Domicilio verificado en Juarez',
+                colonia: aspirante.colonia,
+                codigoPostal: '32000',
+                entrecalles: 'Avenida principal',
+                tiempoEnJuarez: 'Más de 5 años',
+                ultimoEmpleoEmpresa: 'Seguridad Privada Local',
+                ultimoEmpleoPuesto: 'Guardia de Caseta',
+                ultimoEmpleoSueldo: '$3,200',
+                nombreFamiliarReferencia: 'Contacto Familiar',
+                telefonoFamiliarReferencia: aspirante.telefono,
+              },
+              checklistPapeleria: aspirante.checklistPapeleria ?? {
+                ineOriginalPresentada: true,
+                curpPresentada: true,
+                rfcPresentada: true,
+                nssPresentada: true,
+                comprobanteDomicilioPresentado: true,
+                comprobanteEstudiosPresentado: true,
+                actaNacimientoPresentada: true,
+                cartaNoPenalesPresentada: true,
+                papeleriaCompleta: true,
+                documentosPendientes: [],
+              },
+              historialEventos: [
+                {
+                  fecha: `${fechaHoyCorta} 09:00`,
+                  tipo: 'creacion',
+                  descripcion: `Ingesta inicial desde portal / módulo ${aspirante.moduloAbordaje}. Folio ${aspirante.folio}.`,
+                  autor: 'Sistema CEPS',
+                },
+                {
+                  fecha: `${fechaHoyCorta} 10:30`,
+                  tipo: 'evaluacion_razonamiento',
+                  descripcion: 'Examen de Razonamiento VER5 completado y evaluado.',
+                  autor: aspirante.evaluacionRazonamiento?.evaluador ?? 'Reclutador CEPS',
+                },
+                {
+                  fecha: `${fechaHoyCorta} 11:15`,
+                  tipo: 'entrevista_rh',
+                  descripcion: 'Cuestionario de Integridad RH completado.',
+                  autor: aspirante.cuestionarioIntegridad?.evaluador ?? 'Supervisión RH',
+                },
+                {
+                  fecha: `${fechaHoyCorta} 12:00`,
+                  tipo: 'solicitud_completada',
+                  descripcion: dispensa
+                    ? `Dado de Alta como Guardia Activo con Dispensa RH: ${dispensa.motivo}.`
+                    : 'Dado de Alta como Guardia Activo Oficial CEPS con expediente completo al 100%.',
+                  autor: dispensa?.autorizadaPor ?? 'Supervisión RH',
+                },
+              ],
+            }
+
+            useDossierStore.getState().guardarNuevoExpediente(nuevoExpediente)
+          } catch (e) {
+            console.error('Error sincronizando expediente en dossierStore:', e)
+          }
+
+          return {
+            aspirantes: state.aspirantes.map((a) =>
+              a.id === candidatoId
+                ? {
+                    ...a,
+                    estatus: 'activo' as const,
+                    altaDispensa: dispensa,
+                    fechaAlta: fechaHoyCorta,
+                  }
+                : a
+            ),
+          }
+        })
+      },
 
       registrarAspiranteDesdePortal: (aspiranteData) =>
         set((state) => {
@@ -777,7 +1026,7 @@ export const useVacancyStore = create<VacancyStoreState>()(
         }),
     }),
     {
-      name: 'ceps_vacancies_v2',
+      name: 'ceps_vacancies_v3',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         vacantes: state.vacantes,

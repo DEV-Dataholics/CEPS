@@ -5,6 +5,7 @@ import {
   Briefcase,
   SlidersHorizontal,
   UserPlus,
+  UserCheck,
   Search,
   Server,
   LayoutDashboard,
@@ -31,6 +32,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ vistaActual }) => {
     VistaId,
     { titulo: string; descripcion: string; icon: React.FC<{ className?: string }> }
   > = {
+    gestion_candidatos: {
+      titulo: 'Gestión y Evaluación de Candidatos',
+      descripcion: 'Paso 2 &bull; Selección oficial, exámenes psicotécnicos, integridad y alta',
+      icon: UserCheck,
+    },
     dossiers: {
       titulo: 'Expedientes y Dossiers de Guardias',
       descripcion: 'Archivo clasificado &bull; Auditoría de integridad y antecedentes',
@@ -68,7 +74,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ vistaActual }) => {
     },
   }
 
-  const vistaInfo = titulosVistas[vistaActual]
+  const vistaInfo = titulosVistas[vistaActual] ?? {
+    titulo: 'CEPS Paso del Norte',
+    descripcion: 'Sistema de Seguridad Privada y Custodia Especializada',
+    icon: Briefcase,
+  }
   const VistaIcon = vistaInfo.icon
 
   return (

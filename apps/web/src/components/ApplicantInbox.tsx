@@ -41,10 +41,10 @@ export const ApplicantInbox: React.FC<ApplicantInboxProps> = ({
     reactivarAspiranteDeEspera,
   } = useVacancyStore()
 
-  // Filtrado reactivo de aspirantes
+  // Filtrado reactivo de aspirantes: en Gestor de Vacantes SOLO se muestran aprobados/activos
   const aspirantesFiltrados = aspirantes.filter((asp) => {
-    // Filtro por pestaña
-    if (pestañaBandeja === 'nuevas' && asp.estatus !== 'nuevo') return false
+    // Filtro por pestaña: en 'nuevas' mostramos exclusivamente los guardias dados de alta ('activo')
+    if (pestañaBandeja === 'nuevas' && asp.estatus !== 'activo') return false
     if (pestañaBandeja === 'espera' && asp.estatus !== 'en_espera') return false
     if (pestañaBandeja === 'asignadas' && asp.estatus !== 'asignado') return false
 
@@ -73,7 +73,7 @@ export const ApplicantInbox: React.FC<ApplicantInboxProps> = ({
     return true
   })
 
-  const totalNuevas = aspirantes.filter((a) => a.estatus === 'nuevo').length
+  const totalActivos = aspirantes.filter((a) => a.estatus === 'activo').length
   const totalEspera = aspirantes.filter((a) => a.estatus === 'en_espera').length
   const totalAsignadas = aspirantes.filter((a) => a.estatus === 'asignado').length
 
@@ -90,12 +90,12 @@ export const ApplicantInbox: React.FC<ApplicantInboxProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-[#0A162B] text-[#D4AF37] flex items-center justify-center font-extrabold text-sm shadow-sm">
-              📥
+              🛡️
             </div>
             <div>
-              <h2 className="text-sm font-extrabold text-[#0A162B]">Bandeja de Solicitudes</h2>
+              <h2 className="text-sm font-extrabold text-[#0A162B]">Guardias Activos Disponibles</h2>
               <p className="text-[11px] font-semibold text-slate-500">
-                Capturadas en módulos de calle y portal digital
+                Aprobados en evaluación oficial y listos para asignar a servicio
               </p>
             </div>
           </div>
@@ -141,7 +141,7 @@ export const ApplicantInbox: React.FC<ApplicantInboxProps> = ({
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
           <input
             type="text"
-            placeholder="Buscar por Folio (ej. CEPS-2026-4892), nombre, colonia..."
+            placeholder="Buscar guardia por Folio (ej. CEPS-2026-4892), nombre, colonia..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-[#0A162B] outline-none"
@@ -159,13 +159,13 @@ export const ApplicantInbox: React.FC<ApplicantInboxProps> = ({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <span>Nuevas</span>
+            <span>Activos</span>
             <span
               className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
                 pestañaBandeja === 'nuevas' ? 'bg-[#D4AF37] text-[#0A162B]' : 'bg-slate-300 text-slate-700'
               }`}
             >
-              {totalNuevas}
+              {totalActivos}
             </span>
           </button>
 
@@ -213,8 +213,8 @@ export const ApplicantInbox: React.FC<ApplicantInboxProps> = ({
       <div className="flex-1 overflow-y-auto p-3 space-y-3 max-h-[calc(100vh-280px)]">
         {aspirantesFiltrados.length === 0 ? (
           <div className="p-8 text-center text-slate-500 text-xs font-semibold flex flex-col items-center justify-center gap-2">
-            <span className="text-2xl">📋</span>
-            <span>No hay solicitudes que coincidan con los filtros seleccionados.</span>
+            <span className="text-2xl">🛡️</span>
+            <span>No hay guardias en esta categoría. Los nuevos aspirantes se evalúan y dan de alta en <strong>Gestión de Candidatos</strong>.</span>
           </div>
         ) : (
           aspirantesFiltrados.map((asp) => {
