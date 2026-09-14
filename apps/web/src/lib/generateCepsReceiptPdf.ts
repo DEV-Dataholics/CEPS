@@ -1,4 +1,5 @@
 import jsPDF from 'jspdf'
+import QRCode from 'qrcode'
 
 export interface ComprobanteCepsData {
   folio: string
@@ -15,13 +16,14 @@ export interface ComprobanteCepsData {
   documentosAdjuntos: string[]
 }
 
-export function generateCepsReceiptPdf(data: ComprobanteCepsData): void {
-  // Dimensiones tipo ticket móvil (ancho: 95mm, alto: 245mm)
+export async function generateCepsReceiptPdf(data: ComprobanteCepsData): Promise<void> {
+  // Dimensiones tipo ticket móvil vertical centrado (ancho: 95mm, alto: 280mm)
   // Formato ideal para visualización directa en pantalla de smartphone sin necesidad de zoom o paneo horizontal.
   const pageWidth = 95
-  const pageHeight = 245
+  const pageHeight = 280
   const margin = 8
   const contentWidth = pageWidth - margin * 2 // 79mm
+  const centerX = pageWidth / 2
 
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -37,26 +39,26 @@ export function generateCepsReceiptPdf(data: ComprobanteCepsData): void {
   doc.setFillColor(212, 175, 55)
   doc.rect(0, 28, pageWidth, 2, 'F')
 
-  // Textos de Cabecera
+  // Textos de Cabecera (Todos centrados)
   doc.setTextColor(255, 255, 255)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(11)
-  doc.text('CEPS PASO DEL NORTE', pageWidth / 2, 10, { align: 'center' })
+  doc.text('CEPS PASO DEL NORTE', centerX, 10, { align: 'center' })
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(6.5)
   doc.setTextColor(212, 175, 55)
-  doc.text('SEGURIDAD PRIVADA Y CUSTODIA', pageWidth / 2, 15, { align: 'center' })
+  doc.text('SEGURIDAD PRIVADA Y CUSTODIA', centerX, 15, { align: 'center' })
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(6)
   doc.setTextColor(203, 213, 225)
-  doc.text('Cd. Juárez, Chih. • Recursos Humanos', pageWidth / 2, 19.5, { align: 'center' })
+  doc.text('Cd. Juárez, Chih. • Recursos Humanos', centerX, 19.5, { align: 'center' })
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(7)
   doc.setTextColor(255, 255, 255)
-  doc.text('COMPROBANTE DIGITAL DE ASPIRANTE', pageWidth / 2, 24.5, { align: 'center' })
+  doc.text('COMPROBANTE DIGITAL DE ASPIRANTE', centerX, 24.5, { align: 'center' })
 
   // Muescas laterales de ticket (estilo pase digital)
   const notchY = 34
@@ -71,82 +73,93 @@ export function generateCepsReceiptPdf(data: ComprobanteCepsData): void {
   doc.line(6, notchY, pageWidth - 6, notchY)
   doc.setLineDashPattern([], 0)
 
-  // 2. Tarjeta Destacada de Folio Oficial
+  // 2. Tarjeta Destacada de Folio Oficial con Código QR
   const folioBoxY = 38
+  const folioBoxH = 50
   doc.setFillColor(248, 250, 252)
   doc.setDrawColor(212, 175, 55)
   doc.setLineWidth(0.6)
-  doc.roundedRect(margin, folioBoxY, contentWidth, 25, 2, 2, 'FD')
+  doc.roundedRect(margin, folioBoxY, contentWidth, folioBoxH, 2, 2, 'FD')
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(6.5)
   doc.setTextColor(100, 116, 139)
-  doc.text('FOLIO OFICIAL DE REGISTRO', pageWidth / 2, folioBoxY + 5, { align: 'center' })
+  doc.text('FOLIO OFICIAL DE REGISTRO', centerX, folioBoxY + 5.5, { align: 'center' })
 
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(14)
+  doc.setFontSize(13.5)
   doc.setTextColor(10, 22, 43)
-  doc.text(data.folio, pageWidth / 2, folioBoxY + 12, { align: 'center' })
+  doc.text(data.folio, centerX, folioBoxY + 12, { align: 'center' })
 
-  // Código de barras simulado (vectorial estilizado)
-  const barY = folioBoxY + 14.5
-  const barHeight = 4.5
-  const barCode = (data.folio || 'CEPS-2026-0000').toUpperCase()
-  let curBarX = (pageWidth - 44) / 2
-  for (let i = 0; i < barCode.length; i++) {
-    const code = barCode.charCodeAt(i)
-    const isThick = code % 2 === 0
-    const barW = isThick ? 0.9 : 0.45
-    doc.setFillColor(10, 22, 43)
-    doc.rect(curBarX, barY, barW, barHeight, 'F')
-    curBarX += barW + ((code % 3 === 0) ? 0.7 : 0.4)
-    if (curBarX > pageWidth / 2 + 20) break
+  // Generación e inserción de código QR oficial con el Folio
+  try {
+    const qrDataUrl = await QRCode.toDataURL(data.folio, {
+      margin: 1,
+      width: 256,
+      errorCorrectionLevel: 'M',
+      color: {
+        dark: '#0A162B',
+        light: '#FFFFFF',
+      },
+    })
+    const qrSize = 25
+    const qrX = (pageWidth - qrSize) / 2
+    const qrY = folioBoxY + 14.5
+    doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize)
+  } catch (err) {
+    console.error('Error al generar código QR en ticket:', err)
   }
 
-  doc.setFont('helvetica', 'normal')
+  doc.setFont('helvetica', 'bold')
   doc.setFontSize(5.8)
+  doc.setTextColor(10, 22, 43)
+  doc.text('CÓDIGO QR PARA VALORACIÓN Y ACCESO', centerX, folioBoxY + 42.5, { align: 'center' })
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(5.5)
   doc.setTextColor(100, 116, 139)
-  doc.text(`Emisión: ${data.fechaRegistro}`, pageWidth / 2, folioBoxY + 23, { align: 'center' })
+  doc.text(`Emisión: ${data.fechaRegistro}`, centerX, folioBoxY + 46.5, { align: 'center' })
 
-  // Cursor vertical para flujo continuo y sin solapamientos
-  let curY = 67
+  // Cursor vertical para el flujo de secciones (Todas centradas)
+  let curY = folioBoxY + folioBoxH + 6
 
-  // Helper para títulos de sección
+  // Helper para títulos de sección (centrados con adorno)
   const addSectionTitle = (titulo: string) => {
-    doc.setFillColor(212, 175, 55)
-    doc.rect(margin, curY, 2, 3.8, 'F')
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(7)
     doc.setTextColor(10, 22, 43)
-    doc.text(titulo.toUpperCase(), margin + 3.5, curY + 3)
-    curY += 5.8
+    doc.text(`— ${titulo.toUpperCase()} —`, centerX, curY + 2.5, { align: 'center' })
+    curY += 5.5
   }
 
-  // Helper para pares clave-valor verticales
+  // Helper para campos clave-valor (todos justificados al centro)
   const addField = (label: string, value: string) => {
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(6)
     doc.setTextColor(100, 116, 139)
-    doc.text(label.toUpperCase(), margin, curY)
+    doc.text(label.toUpperCase(), centerX, curY, { align: 'center' })
     curY += 2.8
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(7.5)
     doc.setTextColor(15, 23, 42)
-    const lineas = doc.splitTextToSize(value || 'N/A', contentWidth)
-    doc.text(lineas, margin, curY)
-    curY += lineas.length * 3.4 + 2
+    const lineas = doc.splitTextToSize(value || 'N/A', contentWidth - 4)
+    lineas.forEach((line: string) => {
+      doc.text(line, centerX, curY, { align: 'center' })
+      curY += 3.4
+    })
+    curY += 1.8
   }
 
-  // Separador de sección
+  // Helper para separador centrado
   const addDivider = () => {
     doc.setDrawColor(226, 232, 240)
     doc.setLineWidth(0.3)
-    doc.line(margin, curY, pageWidth - margin, curY)
-    curY += 3.8
+    doc.line(margin + 10, curY, pageWidth - margin - 10, curY)
+    curY += 4
   }
 
-  // SECCIÓN 1: DATOS DEL ASPIRANTE
+  // SECCIÓN 1: DATOS DEL ASPIRANTE (CENTRADO)
   addSectionTitle('1. Datos del Aspirante')
   addField('Nombre Completo', data.nombre)
   addField('Teléfono Celular (WhatsApp)', data.telefono)
@@ -155,14 +168,14 @@ export function generateCepsReceiptPdf(data: ComprobanteCepsData): void {
 
   addDivider()
 
-  // SECCIÓN 2: POSTULACIÓN Y MÓDULO
+  // SECCIÓN 2: POSTULACIÓN Y ASIGNACIÓN (CENTRADO)
   addSectionTitle('2. Postulación y Asignación')
   addField('Puesto Solicitado', data.puesto)
   addField('Módulo de Abordaje', data.modulo)
 
   addDivider()
 
-  // SECCIÓN 3: UBICACIÓN DOMICILIARIA
+  // SECCIÓN 3: UBICACIÓN DOMICILIARIA (CENTRADO)
   addSectionTitle('3. Ubicación Domiciliaria')
   const direccionCompleta = data.colonia
     ? `${data.domicilio}, Col. ${data.colonia}`
@@ -172,30 +185,25 @@ export function generateCepsReceiptPdf(data: ComprobanteCepsData): void {
 
   addDivider()
 
-  // SECCIÓN 4: DOCUMENTOS DIGITALIZADOS
+  // SECCIÓN 4: DOCUMENTOS DIGITALIZADOS (CENTRADO)
   addSectionTitle('4. Documentos Digitalizados')
-  const docs = data.documentosAdjuntos && data.documentosAdjuntos.length > 0
-    ? data.documentosAdjuntos
-    : ['Fotografías y datos capturados en módulo']
+  const docs =
+    data.documentosAdjuntos && data.documentosAdjuntos.length > 0
+      ? data.documentosAdjuntos
+      : ['Fotografías y datos capturados en módulo']
 
   docs.forEach((docName) => {
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(6)
-    doc.setTextColor(5, 150, 105) // Emerald 600
-    doc.text('[✓ REGISTRADO]', margin, curY)
-
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7)
-    doc.setTextColor(15, 23, 42)
-    const lineasDoc = doc.splitTextToSize(docName, contentWidth - 22)
-    doc.text(lineasDoc, margin + 20, curY)
-    curY += Math.max(lineasDoc.length * 3.2, 4)
+    doc.setFontSize(6.5)
+    doc.setTextColor(5, 150, 105)
+    doc.text(`✓ ${docName}`, centerX, curY, { align: 'center' })
+    curY += 4
   })
 
-  curY += 1.5
+  curY += 1
   addDivider()
 
-  // SECCIÓN 5: INDICACIONES DE EVALUACIÓN MÉDICA (CAJA RESALTADA)
+  // SECCIÓN 5: INDICACIONES DE CITA (CAJA CENTRADA)
   const boxH = 32
   doc.setFillColor(254, 243, 199) // Amber 100
   doc.setDrawColor(245, 158, 11)  // Amber 500
@@ -205,7 +213,7 @@ export function generateCepsReceiptPdf(data: ComprobanteCepsData): void {
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(6.5)
   doc.setTextColor(180, 83, 9)
-  doc.text('INDICACIONES DE EVALUACIÓN Y CITA', margin + 3, curY + 4.2)
+  doc.text('INDICACIONES DE EVALUACIÓN Y CITA', centerX, curY + 4.5, { align: 'center' })
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(5.5)
@@ -215,14 +223,13 @@ export function generateCepsReceiptPdf(data: ComprobanteCepsData): void {
     '1. Reclutamiento te contactará vía telefónica o WhatsApp.',
     '2. Te asignarán fecha, horario y ubicación para valoración y antidoping.',
     '3. Presenta original y copia de INE y Comprobante de Domicilio.',
-    '4. Conserva este comprobante oficial en tu celular con tu Folio.',
+    '4. Muestra este código QR en tu celular para acceder a tu valoración.',
   ]
 
-  let instY = curY + 8.2
+  let instY = curY + 8.5
   instrucciones.forEach((inst) => {
-    const lines = doc.splitTextToSize(inst, contentWidth - 6)
-    doc.text(lines, margin + 3, instY)
-    instY += lines.length * 2.8 + 1.8
+    doc.text(inst, centerX, instY, { align: 'center' })
+    instY += 4.5
   })
 
   curY += boxH + 3.5
@@ -240,12 +247,12 @@ export function generateCepsReceiptPdf(data: ComprobanteCepsData): void {
 
   curY += 4.5
 
-  // PIE DE PÁGINA
+  // PIE DE PÁGINA CENTRADO
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(5.2)
   doc.setTextColor(148, 163, 184)
-  doc.text('Comprobante digital emitido por la Plataforma Oficial de CEPS Paso del Norte.', pageWidth / 2, curY, { align: 'center' })
-  doc.text('Presenta este comprobante desde tu celular en tu evaluación.', pageWidth / 2, curY + 3.2, { align: 'center' })
+  doc.text('Comprobante digital emitido por la Plataforma Oficial de CEPS Paso del Norte.', centerX, curY, { align: 'center' })
+  doc.text('Presenta este comprobante desde tu celular en tu evaluación.', centerX, curY + 3.2, { align: 'center' })
 
   // Guardar y descargar automáticamente
   doc.save(`Ticket_CEPS_${data.folio}.pdf`)
