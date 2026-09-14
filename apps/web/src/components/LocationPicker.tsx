@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
-import { Navigation, Compass, AlertCircle } from 'lucide-react'
+import { Navigation, Compass, AlertCircle, Sparkles, Home, CheckCircle2 } from 'lucide-react'
 
 export interface DomicilioData {
   calleNumero: string
@@ -36,6 +36,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   const markerRef = useRef<L.Marker | null>(null)
   const [gpsCargando, setGpsCargando] = useState(false)
   const [gpsError, setGpsError] = useState<string | null>(null)
+  const [gpsExitoso, setGpsExitoso] = useState(false)
 
   // Refs estables para callbacks de eventos en Leaflet
   const valorRef = useRef(valor)
@@ -177,10 +178,12 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
         }
 
         setGpsCargando(false)
+        setGpsExitoso(true)
       },
       (err) => {
         setGpsError('No se pudo obtener la señal GPS: ' + err.message + '. Por favor, ubica el pin manualmente en el mapa.')
         setGpsCargando(false)
+        setGpsExitoso(false)
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     )
@@ -211,27 +214,55 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
         </div>
       </div>
 
-      {/* Acciones Rápidas y GPS */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* Botón Destacado: Llenado Automático (Estoy en Casa) */}
+      <div className="bg-gradient-to-r from-[#0A162B] via-[#0f203c] to-[#162746] p-4 sm:p-5 rounded-2xl border-2 border-[#D4AF37]/50 shadow-md text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-start gap-3.5">
+          <div className="p-3 bg-[#D4AF37]/20 border border-[#D4AF37]/50 rounded-xl text-[#D4AF37] flex-shrink-0 shadow-inner">
+            <Home className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] font-black uppercase tracking-wider text-[#D4AF37] bg-[#D4AF37]/15 px-2 py-0.5 rounded border border-[#D4AF37]/30 flex items-center gap-1">
+                <Sparkles className="w-3 h-3" /> Llenado Inteligente
+              </span>
+              {gpsExitoso && (
+                <span className="text-[11px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/40 px-2 py-0.5 rounded flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Domicilio fijado por GPS
+                </span>
+              )}
+            </div>
+            <h4 className="text-base sm:text-lg font-black text-white mt-1">
+              Llenado automático (estoy en casa)
+            </h4>
+            <p className="text-xs text-slate-300 font-medium mt-0.5 leading-relaxed">
+              Si estás en tu domicilio, llena automáticamente tu ubicación exacta en el mapa con un solo clic.
+            </p>
+          </div>
+        </div>
+
         <button
           type="button"
           onClick={usarGpsActual}
           disabled={gpsCargando}
-          className="px-4 py-2.5 bg-[#0A162B] text-white hover:bg-slate-800 rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-2 disabled:opacity-60"
+          className="px-5 py-3 bg-[#D4AF37] hover:bg-[#c49f2e] text-[#0A162B] font-black text-xs uppercase tracking-wider rounded-xl transition-all duration-200 shadow-md flex items-center justify-center gap-2.5 flex-shrink-0 active:scale-95 disabled:opacity-60 cursor-pointer"
         >
-          <Navigation className={`w-4 h-4 text-[#D4AF37] ${gpsCargando ? 'animate-spin' : ''}`} />
-          {gpsCargando ? 'Obteniendo GPS...' : 'Usar mi Ubicación Actual (GPS)'}
+          <Navigation className={`w-4 h-4 text-[#0A162B] ${gpsCargando ? 'animate-spin' : ''}`} />
+          <span>{gpsCargando ? 'Localizando domicilio...' : gpsExitoso ? 'Actualizar mi Domicilio' : 'Usar mi Ubicación'}</span>
         </button>
+      </div>
 
-        {/* Accesos rápidos a zonas de Ciudad Juárez */}
-        <div className="flex items-center gap-1.5 overflow-x-auto py-1">
-          <span className="text-xs font-bold text-slate-600 mr-1 flex-shrink-0">Zonas:</span>
+      {/* Selector de zonas rápidas alternativo */}
+      <div className="flex items-center justify-between flex-wrap gap-2 px-1">
+        <span className="text-xs font-bold text-slate-600">
+          ¿No estás en casa? Zonas rápidas de referencia en Cd. Juárez:
+        </span>
+        <div className="flex items-center gap-1.5 overflow-x-auto py-1 max-w-full">
           {ZONAS_JUAREZ.map((z, idx) => (
             <button
               key={idx}
               type="button"
               onClick={() => centrarEnZona(z.lat, z.lng)}
-              className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 whitespace-nowrap transition"
+              className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 whitespace-nowrap transition shadow-2xs"
             >
               {z.nombre}
             </button>
