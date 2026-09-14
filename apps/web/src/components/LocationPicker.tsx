@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
-import { Navigation, Compass, AlertCircle, Sparkles, Home, CheckCircle2 } from 'lucide-react'
+import { Navigation, Compass, AlertCircle, Sparkles, Home, CheckCircle2, RefreshCw } from 'lucide-react'
+import { api } from '../lib/api'
 
 export interface DomicilioData {
   calleNumero: string
@@ -37,6 +38,8 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   const [gpsCargando, setGpsCargando] = useState(false)
   const [gpsError, setGpsError] = useState<string | null>(null)
   const [gpsExitoso, setGpsExitoso] = useState(false)
+  const [geocodificando, setGeocodificando] = useState(false)
+  const [camposAutollenados, setCamposAutollenados] = useState<string[] | null>(null)
 
   // Refs estables para callbacks de eventos en Leaflet
   const valorRef = useRef(valor)
@@ -149,10 +152,61 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
     }
   }, [valor.latitud, valor.longitud])
 
-  // Obtener geolocalización GPS del dispositivo
+  // Geocodificación inversa para autollenar campos de formulario
+  const autollenarDesdeCoordenadas = async (lat: number, lng: number) => {
+    setGeocodificando(true)
+    setGpsError(null)
+    try {
+      const res = await api.reverseGeocode(lat, lng)
+      const autollenados: string[] = []
+      const nuevoValor: DomicilioData = {
+        ...valorRef.current,
+        latitud: lat,
+        longitud: lng,
+      }
+
+      if (res.calleNumero) {
+        nuevoValor.calleNumero = res.calleNumero
+        autollenados.push('Calle y Número')
+      }
+      if (res.colonia) {
+        nuevoValor.colonia = res.colonia
+        autollenados.push('Colonia')
+      }
+      if (res.codigoPostal) {
+        nuevoValor.codigoPostal = res.codigoPostal
+        autollenados.push('Código Postal')
+      }
+      if (
+        !nuevoValor.tiempoEnJuarez &&
+        (res.ciudad?.toLowerCase().includes('juárez') ||
+          res.ciudad?.toLowerCase().includes('juarez'))
+      ) {
+        nuevoValor.tiempoEnJuarez = 'Toda la vida'
+        autollenados.push('Tiempo en Juárez')
+      }
+
+      onChangeRef.current(nuevoValor)
+      if (autollenados.length > 0) {
+        setCamposAutollenados(autollenados)
+        setGpsExitoso(true)
+      }
+    } catch {
+      onChangeRef.current({
+        ...valorRef.current,
+        latitud: lat,
+        longitud: lng,
+      })
+    } finally {
+      setGeocodificando(false)
+    }
+  }
+
+  // Obtener geolocalización GPS del dispositivo y autollenar formulario
   const usarGpsActual = () => {
     setGpsCargando(true)
     setGpsError(null)
+    setCamposAutollenados(null)
 
     if (!navigator.geolocation) {
       setGpsError('Tu navegador no soporta geolocalización por GPS.')
@@ -161,15 +215,9 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
     }
 
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const lat = Number(pos.coords.latitude.toFixed(6))
         const lng = Number(pos.coords.longitude.toFixed(6))
-
-        onChange({
-          ...valor,
-          latitud: lat,
-          longitud: lng,
-        })
 
         if (mapInstanceRef.current && markerRef.current) {
           mapInstanceRef.current.setView([lat, lng], 17)
@@ -178,10 +226,14 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
         }
 
         setGpsCargando(false)
-        setGpsExitoso(true)
+        await autollenarDesdeCoordenadas(lat, lng)
       },
       (err) => {
-        setGpsError('No se pudo obtener la señal GPS: ' + err.message + '. Por favor, ubica el pin manualmente en el mapa.')
+        setGpsError(
+          'No se pudo obtener la señal GPS: ' +
+            err.message +
+            '. Por favor, ubica el pin manualmente en el mapa.'
+        )
         setGpsCargando(false)
         setGpsExitoso(false)
       },
@@ -243,11 +295,23 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
         <button
           type="button"
           onClick={usarGpsActual}
-          disabled={gpsCargando}
+          disabled={gpsCargando || geocodificando}
           className="px-5 py-3 bg-[#D4AF37] hover:bg-[#c49f2e] text-[#0A162B] font-black text-xs uppercase tracking-wider rounded-xl transition-all duration-200 shadow-md flex items-center justify-center gap-2.5 flex-shrink-0 active:scale-95 disabled:opacity-60 cursor-pointer"
         >
-          <Navigation className={`w-4 h-4 text-[#0A162B] ${gpsCargando ? 'animate-spin' : ''}`} />
-          <span>{gpsCargando ? 'Localizando domicilio...' : gpsExitoso ? 'Actualizar mi Domicilio' : 'Usar mi Ubicación'}</span>
+          {geocodificando ? (
+            <RefreshCw className="w-4 h-4 text-[#0A162B] animate-spin" />
+          ) : (
+            <Navigation className={`w-4 h-4 text-[#0A162B] ${gpsCargando ? 'animate-spin' : ''}`} />
+          )}
+          <span>
+            {gpsCargando
+              ? 'Localizando domicilio...'
+              : geocodificando
+              ? 'Autollenando formulario...'
+              : gpsExitoso
+              ? 'Actualizar mi Domicilio'
+              : 'Usar mi Ubicación'}
+          </span>
         </button>
       </div>
 
@@ -284,45 +348,110 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
           style={{ height: '320px', width: '100%', zIndex: 1 }}
           className="bg-slate-200"
         />
-        <div className="absolute bottom-2 left-2 z-10 bg-white/95 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-mono font-bold text-slate-800 shadow">
-          Lat: {valor.latitud || 31.6904} &bull; Lng: {valor.longitud || -106.4245}
+        <div className="absolute bottom-2 left-2 right-2 z-10 flex items-center justify-between gap-2 flex-wrap pointer-events-none">
+          <div className="bg-white/95 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-mono font-bold text-slate-800 shadow pointer-events-auto">
+            Lat: {valor.latitud || 31.6904} &bull; Lng: {valor.longitud || -106.4245}
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              autollenarDesdeCoordenadas(valor.latitud || 31.6904, valor.longitud || -106.4245)
+            }
+            disabled={geocodificando}
+            className="bg-[#0A162B]/95 hover:bg-[#0A162B] backdrop-blur text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-[#D4AF37]/50 shadow flex items-center gap-1.5 pointer-events-auto transition cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw
+              className={`w-3.5 h-3.5 text-[#D4AF37] ${geocodificando ? 'animate-spin' : ''}`}
+            />
+            {geocodificando ? 'Autollenando...' : 'Sincronizar campos con el mapa'}
+          </button>
         </div>
       </div>
+
+      {/* Banner de confirmación de autollenado */}
+      {camposAutollenados && camposAutollenados.length > 0 && (
+        <div className="p-4 bg-emerald-50 border-2 border-emerald-300 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-emerald-950 font-bold animate-fadeIn">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+            <div>
+              <span className="block font-black text-emerald-900 text-sm">
+                ¡Formulario autollenado con éxito!
+              </span>
+              <span className="font-semibold text-emerald-800">
+                Se completaron los campos:{' '}
+                <span className="font-bold underline">{camposAutollenados.join(', ')}</span>.
+              </span>
+            </div>
+          </div>
+          <span className="text-[11px] font-semibold text-emerald-700 bg-white px-2.5 py-1 rounded-lg border border-emerald-300 flex-shrink-0 shadow-2xs">
+            Puedes afinar cualquier dato si lo requieres
+          </span>
+        </div>
+      )}
 
       {/* Campos de Dirección Estructurada */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-extrabold text-slate-900">
-            Calle y Número Exterior / Interior *
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-extrabold text-slate-900">
+              Calle y Número Exterior / Interior *
+            </label>
+            {camposAutollenados?.includes('Calle y Número') && (
+              <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Autollenado
+              </span>
+            )}
+          </div>
           <input
             type="text"
             required
             placeholder="Ej. Av. De las Torres #1420 Int. 4"
             value={valor.calleNumero}
             onChange={(e) => onChange({ ...valor, calleNumero: e.target.value })}
-            className="px-3.5 py-2.5 bg-white border-2 border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none"
+            className={`px-3.5 py-2.5 border-2 rounded-xl text-sm font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none transition ${
+              camposAutollenados?.includes('Calle y Número')
+                ? 'bg-emerald-50/40 border-emerald-400'
+                : 'bg-white border-slate-300'
+            }`}
           />
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-extrabold text-slate-900">
-            Colonia / Fraccionamiento *
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-extrabold text-slate-900">
+              Colonia / Fraccionamiento *
+            </label>
+            {camposAutollenados?.includes('Colonia') && (
+              <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Autollenado
+              </span>
+            )}
+          </div>
           <input
             type="text"
             required
             placeholder="Ej. Fracc. Praderas del Sol"
             value={valor.colonia}
             onChange={(e) => onChange({ ...valor, colonia: e.target.value })}
-            className="px-3.5 py-2.5 bg-white border-2 border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none"
+            className={`px-3.5 py-2.5 border-2 rounded-xl text-sm font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none transition ${
+              camposAutollenados?.includes('Colonia')
+                ? 'bg-emerald-50/40 border-emerald-400'
+                : 'bg-white border-slate-300'
+            }`}
           />
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-extrabold text-slate-900">
-            Código Postal *
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-extrabold text-slate-900">
+              Código Postal *
+            </label>
+            {camposAutollenados?.includes('Código Postal') && (
+              <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Autollenado
+              </span>
+            )}
+          </div>
           <input
             type="text"
             required
@@ -330,7 +459,11 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
             maxLength={5}
             value={valor.codigoPostal}
             onChange={(e) => onChange({ ...valor, codigoPostal: e.target.value })}
-            className="px-3.5 py-2.5 bg-white border-2 border-slate-300 rounded-xl text-sm font-mono font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none"
+            className={`px-3.5 py-2.5 border-2 rounded-xl text-sm font-mono font-bold text-slate-900 focus:ring-4 focus:ring-[#0A162B]/20 outline-none transition ${
+              camposAutollenados?.includes('Código Postal')
+                ? 'bg-emerald-50/40 border-emerald-400'
+                : 'bg-white border-slate-300'
+            }`}
           />
         </div>
 

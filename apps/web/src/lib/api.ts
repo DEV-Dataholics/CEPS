@@ -71,6 +71,21 @@ export interface HealthCheckResponse {
   timestamp: string
 }
 
+export interface ReverseGeocodeResponse {
+  status: string
+  calleNumero?: string
+  colonia?: string
+  codigoPostal?: string
+  ciudad?: string
+  estado?: string
+  displayName?: string
+  message?: string
+}
+
 export const api = {
   getHealth: () => pedir<HealthCheckResponse>('/health'),
+  reverseGeocode: (lat: number, lng: number) =>
+    pedir<ReverseGeocodeResponse>(
+      `/geocoding/reverse?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`
+    ),
 }
