@@ -19,6 +19,7 @@ import { VacancyCard } from '../components/VacancyCard'
 import { ApplicantInbox } from '../components/ApplicantInbox'
 import { NewVacancyModal } from '../components/NewVacancyModal'
 import { AssignCandidateModal } from '../components/AssignCandidateModal'
+import { CandidateReviewModal } from '../components/CandidateReviewModal'
 
 export const VacancyManagerView: React.FC = () => {
   const {
@@ -32,6 +33,7 @@ export const VacancyManagerView: React.FC = () => {
 
   const [modalNuevaVacanteOpen, setModalNuevaVacanteOpen] = useState(false)
   const [candidatoParaDecidir, setCandidatoParaDecidir] = useState<AspiranteSolicitud | null>(null)
+  const [candidatoParaRevisar, setCandidatoParaRevisar] = useState<AspiranteSolicitud | null>(null)
   const [modoDecision, setModoDecision] = useState<'asignar' | 'espera' | null>(null)
   const [toastMensaje, setToastMensaje] = useState<string | null>(null)
 
@@ -231,7 +233,10 @@ export const VacancyManagerView: React.FC = () => {
       <main className="max-w-7xl w-full mx-auto p-4 sm:p-6 flex-1 flex flex-col lg:flex-row gap-6 items-stretch">
         {/* PANEL IZQUIERDO: BANDEJA DE SOLICITUDES */}
         <section className="w-full lg:w-[420px] xl:w-[450px] flex-shrink-0 flex flex-col">
-          <ApplicantInbox onDecidirCandidato={handleDecidirCandidato} />
+          <ApplicantInbox
+            onDecidirCandidato={handleDecidirCandidato}
+            onRevisarCandidato={(c) => setCandidatoParaRevisar(c)}
+          />
         </section>
 
         {/* PANEL DERECHO: TABLERO DE VACANTES POR EMPRESA */}
@@ -525,6 +530,16 @@ export const VacancyManagerView: React.FC = () => {
         onClose={() => {
           setCandidatoParaDecidir(null)
           setModoDecision(null)
+        }}
+      />
+
+      {/* MODAL AUDITORÍA Y REVISIÓN DETALLADA DE POSTULACIÓN */}
+      <CandidateReviewModal
+        candidato={candidatoParaRevisar}
+        onClose={() => setCandidatoParaRevisar(null)}
+        onDecidir={(c, accion) => {
+          setCandidatoParaRevisar(null)
+          handleDecidirCandidato(c, accion)
         }}
       />
 

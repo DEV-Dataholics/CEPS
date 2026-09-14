@@ -12,14 +12,19 @@ import {
   FileCheck2,
   Building,
   Tag,
+  Eye,
 } from 'lucide-react'
 import { useVacancyStore, type AspiranteSolicitud } from '../store/vacancyStore'
 
 interface ApplicantInboxProps {
   onDecidirCandidato: (candidato: AspiranteSolicitud, accion: 'asignar' | 'espera') => void
+  onRevisarCandidato?: (candidato: AspiranteSolicitud) => void
 }
 
-export const ApplicantInbox: React.FC<ApplicantInboxProps> = ({ onDecidirCandidato }) => {
+export const ApplicantInbox: React.FC<ApplicantInboxProps> = ({
+  onDecidirCandidato,
+  onRevisarCandidato,
+}) => {
   const {
     aspirantes,
     vacantes,
@@ -238,8 +243,11 @@ export const ApplicantInbox: React.FC<ApplicantInboxProps> = ({ onDecidirCandida
                 </div>
 
                 {/* NOMBRE Y PUESTO */}
-                <div>
-                  <h4 className="text-sm font-extrabold text-[#0A162B] leading-tight">
+                <div
+                  className={onRevisarCandidato ? 'cursor-pointer group' : ''}
+                  onClick={() => onRevisarCandidato && onRevisarCandidato(asp)}
+                >
+                  <h4 className="text-sm font-extrabold text-[#0A162B] group-hover:text-blue-800 transition leading-tight">
                     {asp.nombre} {asp.apellidoPaterno} {asp.apellidoMaterno}
                   </h4>
                   <p className="text-xs font-bold text-slate-700 mt-0.5">
@@ -291,6 +299,18 @@ export const ApplicantInbox: React.FC<ApplicantInboxProps> = ({ onDecidirCandida
 
                 {/* BOTONES DE DECISIÓN OPERATIVA */}
                 <div className="pt-2 border-t border-slate-100 flex items-center gap-1.5">
+                  {onRevisarCandidato && (
+                    <button
+                      type="button"
+                      onClick={() => onRevisarCandidato(asp)}
+                      title="Revisar expediente completo del aspirante"
+                      className="py-1.5 px-2.5 rounded-lg border border-slate-300 text-slate-700 bg-white hover:bg-slate-100 text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer flex-shrink-0"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-blue-700" />
+                      <span>Revisar</span>
+                    </button>
+                  )}
+
                   {asp.estatus === 'nuevo' && (
                     <>
                       <button
@@ -299,7 +319,7 @@ export const ApplicantInbox: React.FC<ApplicantInboxProps> = ({ onDecidirCandida
                           setCandidatoSeleccionadoId(esSeleccionado ? null : asp.id)
                           onDecidirCandidato(asp, 'asignar')
                         }}
-                        className="flex-1 py-1.5 px-2 rounded-lg bg-[#0A162B] hover:bg-slate-800 text-white text-xs font-extrabold transition flex items-center justify-center gap-1 shadow-xs"
+                        className="flex-1 py-1.5 px-2 rounded-lg bg-[#0A162B] hover:bg-slate-800 text-white text-xs font-extrabold transition flex items-center justify-center gap-1 shadow-xs cursor-pointer"
                       >
                         <UserCheck className="w-3.5 h-3.5 text-[#D4AF37]" />
                         <span>Aprobar / Asignar</span>
@@ -309,7 +329,7 @@ export const ApplicantInbox: React.FC<ApplicantInboxProps> = ({ onDecidirCandida
                         type="button"
                         onClick={() => onDecidirCandidato(asp, 'espera')}
                         title="Mover a Cartera en Espera"
-                        className="py-1.5 px-2.5 rounded-lg border border-amber-300 text-amber-900 bg-amber-50 hover:bg-amber-100 text-xs font-bold transition flex items-center gap-1"
+                        className="py-1.5 px-2.5 rounded-lg border border-amber-300 text-amber-900 bg-amber-50 hover:bg-amber-100 text-xs font-bold transition flex items-center gap-1 cursor-pointer"
                       >
                         <PauseCircle className="w-3.5 h-3.5 text-amber-700" />
                         <span>Espera</span>
