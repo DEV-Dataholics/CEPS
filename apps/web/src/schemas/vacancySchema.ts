@@ -7,7 +7,7 @@ export const vacancySchema = z.object({
   puesto: z.string().min(3, 'El puesto requerido es obligatorio'),
   turno: z.string().min(2, 'El turno y horario es obligatorio'),
   plazasTotales: z
-    .number({ invalid_type_error: 'Debe ser un número válido' })
+    .number({ message: 'Debe ser un número válido' })
     .int('Debe ser un número entero')
     .min(1, 'Debe haber al menos 1 plaza requerida'),
   sueldoSemanal: z.string().min(2, 'Ingresa el sueldo o percepción semanal'),

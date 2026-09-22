@@ -66,7 +66,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     },
     {
       id: 'dossiers',
-      label: 'Expedientes de Guardias',
+      label: 'Expedientes de Personal',
       shortLabel: 'Expedientes',
       icon: FolderArchive,
       departamento: 'Recursos Humanos',
@@ -80,14 +80,21 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     },
     {
       id: 'candidato',
-      label: 'Portal del Candidato',
+      label: 'Registro de Aspirantes',
       shortLabel: 'Registro',
       icon: UserPlus,
       departamento: 'Público',
     },
     {
+      id: 'examen_tablet',
+      label: 'Evaluación en Tablet',
+      shortLabel: 'Exámenes',
+      icon: UserCheck,
+      departamento: 'Público / Aspirante',
+    },
+    {
       id: 'tracking',
-      label: 'Consultar Estatus (Folio)',
+      label: 'Consulta de Estatus',
       shortLabel: 'Consultar',
       icon: Search,
       departamento: 'Público / Módulos',
@@ -155,14 +162,14 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         </button>
       </div>
 
-      {/* 2. Simulador de Gobernanza de Accesos (RBAC) */}
+      {/* 2. Simulador de Gobernanza de Accesos (RBAC) - 4 Roles Oficiales para el Demo */}
       <div className="p-3 border-b-2 border-slate-800/80 bg-[#0A162B]/60">
         {!sidebarCollapsed ? (
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
               <span className="flex items-center gap-1">
                 <Lock className="w-3 h-3 text-[#D4AF37]" />
-                Perfil RBAC Activo:
+                Rol Operativo (Demo):
               </span>
             </div>
 
@@ -171,14 +178,13 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               onChange={(e) => handleCambiarRol(e.target.value as RolOperativo)}
               className="w-full px-2.5 py-2 bg-slate-900 border-2 border-slate-700 rounded-xl text-xs font-bold text-white outline-none focus:border-[#D4AF37] cursor-pointer"
             >
-              <option value="reclutador_campo">⚡ Reclutador en Campo</option>
-              <option value="supervision_rh">📋 Supervisora RH & Selección</option>
-              <option value="direccion_operativa">🛡️ Dirección de Operaciones</option>
-              <option value="candidato_externo">👤 Candidato Externo (Público)</option>
-              <option value="admin_ti">⚙️ Administrador / TI</option>
+              <option value="candidato">👤 1. Candidato (Público)</option>
+              <option value="reclutador_campo">⚡ 2. Reclutador en Campo</option>
+              <option value="admin_vacantes">📋 3. Administrador de Vacantes</option>
+              <option value="admin_general">🛡️ 4. Administrador General</option>
             </select>
 
-            <div className="text-[10px] text-slate-400 font-medium truncate pt-0.5">
+            <div className="text-[10px] text-[#D4AF37] font-semibold truncate pt-0.5">
               {infoRol.subtitulo}
             </div>
           </div>

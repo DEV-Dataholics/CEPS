@@ -56,6 +56,18 @@ export interface AspiranteSolicitud {
   motivoEspera?: MotivoEspera | string
   documentosAdjuntos: string[]
 
+  // Control de No Contratable (Veto Administrativo)
+  noContratable?: boolean
+  motivoNoContratable?: string
+  fechaNoContratable?: string
+
+  // Habilitación individual de exámenes por el Administrador de Vacantes
+  examenesHabilitados?: {
+    razonamiento?: boolean
+    entrevista?: boolean
+    medico?: boolean
+  }
+
   // Evaluaciones y Onboarding Oficial CEPS
   evaluacionRazonamiento?: EvaluacionRazonamientoData
   cuestionarioIntegridad?: CuestionarioIntegridadData
@@ -112,6 +124,23 @@ export interface VacancyStoreState {
   guardarCuestionarioIntegridad: (candidatoId: string, data: CuestionarioIntegridadData) => void
   actualizarChecklistPapeleria: (candidatoId: string, checklist: ChecklistPapeleriaOriginal) => void
   darDeAltaCandidato: (candidatoId: string, dispensa?: AltaDispensaData) => void
+
+  // Control Administrativo: No Contratable
+  setNoContratable: (candidatoId: string, noContratable: boolean, motivo?: string) => void
+
+  // Habilitación individual de exámenes (Administrador de Vacantes)
+  habilitarExamen: (
+    candidatoId: string,
+    tipo: 'razonamiento' | 'entrevista' | 'medico',
+    habilitado: boolean
+  ) => void
+
+  // Baja de Empleado con Cascading Offboarding
+  darDeBajaEmpleado: (
+    candidatoId: string,
+    motivo: string,
+    marcarNoContratable?: boolean
+  ) => void
 
   // Ingesta desde Portal Candidato
   registrarAspiranteDesdePortal: (aspirante: Omit<AspiranteSolicitud, 'id'>) => void
@@ -350,6 +379,30 @@ const vacantesIniciales: Vacante[] = [
 // Solicitudes iniciales representativas capturadas en módulos de abordaje
 const aspirantesIniciales: AspiranteSolicitud[] = [
   {
+    id: 'sol-veto-01',
+    folio: 'CEPS-2025-0089',
+    nombre: 'Roberto Carlos',
+    apellidoPaterno: 'Sandoval',
+    apellidoMaterno: 'Meza',
+    telefono: '(656) 555-0199',
+    edad: '41',
+    curp: 'SAMR830412HCHNN01',
+    rfc: 'SAMR830412XYZ',
+    puestoDeseado: 'Guardia de Seguridad Industrial 12x12',
+    moduloAbordaje: 'Módulo S-Mart Independencia',
+    fechaCaptura: 'ayer',
+    fechaEtiqueta: 'Veto Administrativo Activo',
+    colonia: 'Col. Melchor Ocampo',
+    zonaJuarez: 'Centro / Pronaf',
+    latitud: 31.7345,
+    longitud: -106.4421,
+    estatus: 'en_espera',
+    noContratable: true,
+    motivoNoContratable: 'Abandono de puesto con armas en turno nocturno (Sanción Dirección General)',
+    fechaNoContratable: '2025-11-10',
+    documentosAdjuntos: ['INE'],
+  },
+  {
     id: 'sol-101',
     folio: 'CEPS-2026-4892',
     nombre: 'Jorge Alejandro',
@@ -368,6 +421,11 @@ const aspirantesIniciales: AspiranteSolicitud[] = [
     latitud: 31.6324,
     longitud: -106.3789,
     estatus: 'nuevo',
+    examenesHabilitados: {
+      razonamiento: true,
+      entrevista: true,
+      medico: false,
+    },
     documentosAdjuntos: ['INE', 'RFC', 'No Penales'],
   },
   {
@@ -998,6 +1056,101 @@ export const useVacancyStore = create<VacancyStoreState>()(
         })
       },
 
+      setNoContratable: (candidatoId, noContratable, motivo) =>
+        set((state) => ({
+          aspirantes: state.aspirantes.map((a) =>
+            a.id === candidatoId
+              ? {
+                  ...a,
+                  noContratable,
+                  motivoNoContratable: noContratable
+                    ? motivo || 'Veto administrativo registrado por Administración General'
+                    : undefined,
+                  fechaNoContratable: noContratable
+                    ? new Date().toISOString().substring(0, 10)
+                    : undefined,
+                }
+              : a
+          ),
+        })),
+
+      habilitarExamen: (candidatoId, tipo, habilitado) =>
+        set((state) => ({
+          aspirantes: state.aspirantes.map((a) =>
+            a.id === candidatoId
+              ? {
+                  ...a,
+                  examenesHabilitados: {
+                    ...a.examenesHabilitados,
+                    [tipo]: habilitado,
+                  },
+                }
+              : a
+          ),
+        })),
+
+      darDeBajaEmpleado: (candidatoId, motivo, marcarNoContratable) =>
+        set((state) => {
+          const aspirante = state.aspirantes.find((a) => a.id === candidatoId)
+          if (!aspirante) return state
+
+          const fechaHoy = new Date().toISOString().substring(0, 10)
+
+          // 1. Cascading Offboarding: Desasignar de todas las vacantes
+          const vacantesActualizadas = state.vacantes.map((v) => {
+            if (v.aspirantesAsignadosIds.includes(candidatoId)) {
+              const nuevaLista = v.aspirantesAsignadosIds.filter((id) => id !== candidatoId)
+              return {
+                ...v,
+                aspirantesAsignadosIds: nuevaLista,
+                // Si la vacante estaba cubierta, reabrirla inmediatamente
+                estado: nuevaLista.length < v.plazasTotales ? ('abierta' as const) : v.estado,
+              }
+            }
+            return v
+          })
+
+          // 2. Actualizar estatus del aspirante a 'en_espera' / baja
+          const aspirantesActualizados = state.aspirantes.map((a) =>
+            a.id === candidatoId
+              ? {
+                  ...a,
+                  estatus: 'en_espera' as const,
+                  vacanteAsignadaId: undefined,
+                  motivoEspera: `Baja de Servicio: ${motivo}`,
+                  noContratable: marcarNoContratable ? true : a.noContratable,
+                  motivoNoContratable: marcarNoContratable ? motivo : a.motivoNoContratable,
+                  fechaNoContratable: marcarNoContratable ? fechaHoy : a.fechaNoContratable,
+                }
+              : a
+          )
+
+          // 3. Sincronizar con dossierStore si existe expediente
+          try {
+            const dossierStore = useDossierStore.getState()
+            const folioLimpio = aspirante.folio.replace(/[^a-zA-Z0-9]/g, '')
+            const exp = dossierStore.expedientes.find(
+              (e) => e.folio === aspirante.folio || e.id.includes(folioLimpio)
+            )
+            if (exp) {
+              dossierStore.actualizarNotasConfidenciales(
+                exp.id,
+                `Baja de servicio: ${motivo}. Desasignado de turno y empresa cliente.${
+                  marcarNoContratable ? ' REGISTRADO COMO NO CONTRATABLE.' : ''
+                }`,
+                marcarNoContratable ? 'no_apto' : 'reserva'
+              )
+            }
+          } catch (e) {
+            console.error('Error sincronizando baja en dossierStore:', e)
+          }
+
+          return {
+            vacantes: vacantesActualizadas,
+            aspirantes: aspirantesActualizados,
+          }
+        }),
+
       registrarAspiranteDesdePortal: (aspiranteData) =>
         set((state) => {
           // Evitar duplicados por folio
@@ -1026,7 +1179,7 @@ export const useVacancyStore = create<VacancyStoreState>()(
         }),
     }),
     {
-      name: 'ceps_vacancies_v3',
+      name: 'ceps_vacancies_v4',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         vacantes: state.vacantes,

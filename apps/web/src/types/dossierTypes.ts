@@ -95,7 +95,7 @@ export interface AuditoriaIntegridad {
   fechaEvaluacion: string
 }
 
-// 4. Solicitud de Empleo Digital (Captura ágil que evita tachaduras de papel)
+// 4. Solicitud de Empleo Digital
 export interface SolicitudEmpleoDigital {
   curp: string
   rfc: string

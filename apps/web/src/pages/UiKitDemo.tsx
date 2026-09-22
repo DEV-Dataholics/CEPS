@@ -430,7 +430,7 @@ export const UiKitDemo: React.FC = () => {
                   3. Pipeline de Reclutamiento a Contratación (5 Fases)
                 </h2>
                 <p className="text-sm font-medium text-slate-700 mt-1">
-                  Flujo operativo continuo identificado en las entrevistas de la Célula 0.
+                  Flujo operativo continuo del ciclo de vida del candidato y guardia.
                 </p>
               </div>
               <div className="flex gap-2">

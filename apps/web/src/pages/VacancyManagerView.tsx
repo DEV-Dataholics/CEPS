@@ -136,7 +136,7 @@ export const VacancyManagerView: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-extrabold text-[#D4AF37] uppercase tracking-wider">
-                  Módulo 2 &bull; Reclutamiento y Contratación
+                  Operaciones &bull; Cobertura de Plantillas
                 </span>
               </div>
               <h1 className="text-lg font-extrabold text-white">

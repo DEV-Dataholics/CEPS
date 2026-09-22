@@ -6,14 +6,21 @@ const BASE = '/api/v1'
 let tokenActual: string | null = localStorage.getItem('ceps_token')
 
 export class ApiError extends Error {
+  status: number
+  codigo: string
+  fields?: Record<string, string[]>
+
   constructor(
-    public status: number,
-    public codigo: string,
+    status: number,
+    codigo: string,
     message: string,
-    public fields?: Record<string, string[]>,
+    fields?: Record<string, string[]>,
   ) {
     super(message)
     this.name = 'ApiError'
+    this.status = status
+    this.codigo = codigo
+    this.fields = fields
   }
 }
 
@@ -82,10 +89,40 @@ export interface ReverseGeocodeResponse {
   message?: string
 }
 
+export interface SatConsultaDomicilio {
+  calle: string
+  tipoVialidad: string
+  numeroExterior: string
+  numeroInterior: string
+  calleNumero: string
+  colonia: string
+  codigoPostal: string
+  municipio: string
+  estado: string
+  direccionCompleta: string
+}
+
+export interface SatConsultaResponse {
+  status: 'ok' | 'partial' | 'error'
+  rfc?: string
+  curp?: string
+  nombre?: string
+  apellidoPaterno?: string
+  apellidoMaterno?: string
+  nombreCompleto?: string
+  fechaNacimiento?: string
+  situacion?: string
+  domicilio?: SatConsultaDomicilio
+  regimenes?: string[]
+  message?: string
+}
+
 export const api = {
   getHealth: () => pedir<HealthCheckResponse>('/health'),
   reverseGeocode: (lat: number, lng: number) =>
     pedir<ReverseGeocodeResponse>(
       `/geocoding/reverse?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`
     ),
+  consultarSat: (url: string) =>
+    pedir<SatConsultaResponse>(`/sat/consultar?url=${encodeURIComponent(url)}`),
 }

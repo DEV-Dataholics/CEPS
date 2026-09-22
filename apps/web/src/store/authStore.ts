@@ -2,10 +2,14 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
 export type RolOperativo =
+  | 'candidato'
   | 'reclutador_campo'
+  | 'admin_vacantes'
+  | 'admin_general'
+  // Compatibilidad hacia atrás:
+  | 'candidato_externo'
   | 'supervision_rh'
   | 'direccion_operativa'
-  | 'candidato_externo'
   | 'admin_ti'
 
 export type VistaId =
@@ -13,6 +17,7 @@ export type VistaId =
   | 'vacantes'
   | 'dossiers'
   | 'candidato'
+  | 'examen_tablet'
   | 'tracking'
   | 'catalogos'
   | 'uikit'
@@ -31,6 +36,28 @@ export interface InfoRol {
 }
 
 export const METADATA_ROLES: Record<RolOperativo, InfoRol> = {
+  candidato: {
+    id: 'candidato',
+    titulo: 'Candidato (Público)',
+    subtitulo: 'Autoservicio & Evaluación en Tablet',
+    departamento: 'Portal Público',
+    icono: '👤',
+    badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500',
+    vistasPermitidas: ['candidato', 'examen_tablet', 'tracking'],
+    vistaPorDefecto: 'candidato',
+    permiteEntrevistaEnTablet: false,
+  },
+  candidato_externo: {
+    id: 'candidato',
+    titulo: 'Candidato (Público)',
+    subtitulo: 'Autoservicio & Evaluación en Tablet',
+    departamento: 'Portal Público',
+    icono: '👤',
+    badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500',
+    vistasPermitidas: ['candidato', 'examen_tablet', 'tracking'],
+    vistaPorDefecto: 'candidato',
+    permiteEntrevistaEnTablet: false,
+  },
   reclutador_campo: {
     id: 'reclutador_campo',
     titulo: 'Reclutador en Campo',
@@ -38,59 +65,81 @@ export const METADATA_ROLES: Record<RolOperativo, InfoRol> = {
     departamento: 'Atracción de Talento',
     icono: '⚡',
     badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500',
-    vistasPermitidas: ['gestion_candidatos', 'dossiers', 'tracking'],
+    vistasPermitidas: ['candidato', 'tracking'],
+    vistaPorDefecto: 'candidato',
+    permiteEntrevistaEnTablet: true,
+  },
+  admin_vacantes: {
+    id: 'admin_vacantes',
+    titulo: 'Administrador de Vacantes',
+    subtitulo: 'Gestión de Aspirantes y Despliegue',
+    departamento: 'Operaciones & RH',
+    icono: '📋',
+    badgeColor: 'bg-amber-500/20 text-[#D4AF37] border-[#D4AF37]',
+    vistasPermitidas: ['gestion_candidatos', 'vacantes', 'dossiers'],
     vistaPorDefecto: 'gestion_candidatos',
     permiteEntrevistaEnTablet: true,
   },
   supervision_rh: {
-    id: 'supervision_rh',
-    titulo: 'Supervisora RH & Contratación',
-    subtitulo: 'Oficina Central CEPS (Eunice Lira / Jaqueline R.)',
-    departamento: 'Recursos Humanos',
+    id: 'admin_vacantes',
+    titulo: 'Administrador de Vacantes',
+    subtitulo: 'Gestión de Aspirantes y Despliegue',
+    departamento: 'Operaciones & RH',
     icono: '📋',
-    badgeColor: 'bg-blue-500/20 text-blue-300 border-blue-500',
-    vistasPermitidas: ['gestion_candidatos', 'vacantes', 'dossiers', 'tracking'],
+    badgeColor: 'bg-amber-500/20 text-[#D4AF37] border-[#D4AF37]',
+    vistasPermitidas: ['gestion_candidatos', 'vacantes', 'dossiers'],
     vistaPorDefecto: 'gestion_candidatos',
     permiteEntrevistaEnTablet: true,
   },
   direccion_operativa: {
-    id: 'direccion_operativa',
-    titulo: 'Dirección de Operaciones',
-    subtitulo: 'Seguridad Industrial y Maquiladoras',
-    departamento: 'Operaciones CEPS',
-    icono: '🛡️',
+    id: 'admin_vacantes',
+    titulo: 'Administrador de Vacantes',
+    subtitulo: 'Gestión de Aspirantes y Despliegue',
+    departamento: 'Operaciones & RH',
+    icono: '📋',
     badgeColor: 'bg-amber-500/20 text-[#D4AF37] border-[#D4AF37]',
-    vistasPermitidas: ['vacantes', 'gestion_candidatos', 'catalogos', 'dossiers'],
-    vistaPorDefecto: 'vacantes',
+    vistasPermitidas: ['gestion_candidatos', 'vacantes', 'dossiers'],
+    vistaPorDefecto: 'gestion_candidatos',
     permiteEntrevistaEnTablet: true,
   },
-  candidato_externo: {
-    id: 'candidato_externo',
-    titulo: 'Aspirante / Candidato Externo',
-    subtitulo: 'Acceso Móvil Ciudadano (QR / Web)',
-    departamento: 'Portal Público',
-    icono: '👤',
-    badgeColor: 'bg-slate-500/20 text-slate-300 border-slate-500',
-    vistasPermitidas: ['candidato', 'tracking'],
-    vistaPorDefecto: 'candidato',
-    permiteEntrevistaEnTablet: false,
-  },
-  admin_ti: {
-    id: 'admin_ti',
-    titulo: 'Administrador / TI',
-    subtitulo: 'Superusuario de Infraestructura',
-    departamento: 'Tecnologías de Información',
-    icono: '⚙️',
+  admin_general: {
+    id: 'admin_general',
+    titulo: 'Administrador General',
+    subtitulo: 'Gobierno de Sistema, Bajas y Backend',
+    departamento: 'Dirección & TI',
+    icono: '🛡️',
     badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500',
     vistasPermitidas: [
       'gestion_candidatos',
       'vacantes',
       'dossiers',
       'catalogos',
-      'candidato',
-      'tracking',
       'diagnostico',
       'uikit',
+      'candidato',
+      'examen_tablet',
+      'tracking',
+    ],
+    vistaPorDefecto: 'gestion_candidatos',
+    permiteEntrevistaEnTablet: true,
+  },
+  admin_ti: {
+    id: 'admin_general',
+    titulo: 'Administrador General',
+    subtitulo: 'Gobierno de Sistema, Bajas y Backend',
+    departamento: 'Dirección & TI',
+    icono: '🛡️',
+    badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500',
+    vistasPermitidas: [
+      'gestion_candidatos',
+      'vacantes',
+      'dossiers',
+      'catalogos',
+      'diagnostico',
+      'uikit',
+      'candidato',
+      'examen_tablet',
+      'tracking',
     ],
     vistaPorDefecto: 'gestion_candidatos',
     permiteEntrevistaEnTablet: true,
@@ -115,7 +164,7 @@ interface AuthStoreState {
 export const useAuthStore = create<AuthStoreState>()(
   persist(
     (set) => ({
-      rolActivo: 'supervision_rh',
+      rolActivo: 'admin_vacantes',
       sidebarCollapsed: false,
       mobileDrawerOpen: false,
       modalEntrevistaGlobalAbierto: false,
@@ -129,8 +178,9 @@ export const useAuthStore = create<AuthStoreState>()(
         set({ modalEntrevistaGlobalAbierto }),
     }),
     {
-      name: 'ceps_auth_role_v1',
+      name: 'ceps_auth_role_v2',
       storage: createJSONStorage(() => localStorage),
     }
   )
 )
+

@@ -14,12 +14,15 @@ import {
   AlertTriangle,
   Check,
   Barcode,
+  Home,
+  QrCode,
 } from 'lucide-react'
 import {
   parseCurp,
   parseSatQr,
   type ExtractedCurpData,
 } from '../lib/mexicanIdParser'
+import { api } from '../lib/api'
 import {
   verificarDuplicidadAspirante,
   type ResultadoDuplicidad,
@@ -33,12 +36,74 @@ interface DocumentScannerGateProps {
 
 type EtapaEscaneo = 'curp' | 'sat_opcional' | 'confirmacion'
 
+/**
+ * Emite un tono sintetizado agudo de confirmación táctica (estilo lectores Zebra / Honeywell)
+ */
+function emitirBeepExito() {
+  try {
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+    if (!AudioContextClass) return
+    const ctx = new AudioContextClass()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(1400, ctx.currentTime)
+    osc.frequency.exponentialRampToValueAtTime(1800, ctx.currentTime + 0.09)
+    gain.gain.setValueAtTime(0.15, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.09)
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start()
+    osc.stop(ctx.currentTime + 0.09)
+  } catch {}
+}
+
+/**
+ * Emite un tono grave de aviso si el código no coincide con CURP o RFC
+ */
+function emitirBeepError() {
+  try {
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+    if (!AudioContextClass) return
+    const ctx = new AudioContextClass()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.type = 'sawtooth'
+    osc.frequency.setValueAtTime(320, ctx.currentTime)
+    gain.gain.setValueAtTime(0.12, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2)
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start()
+    osc.stop(ctx.currentTime + 0.2)
+  } catch {}
+}
+
 export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
   onConfirmar,
 }) => {
   const [etapa, setEtapa] = useState<EtapaEscaneo>('curp')
   const [curpExtraida, setCurpExtraida] = useState<ExtractedCurpData | null>(null)
   const [rfcCompleto, setRfcCompleto] = useState<string | null>(null)
+
+  // Estados de Procesamiento y Feedback en Tiempo Real
+  const procesandoRef = useRef(false)
+  const [procesando, setProcesando] = useState(false)
+  const [mensajeProceso, setMensajeProceso] = useState('')
+  const [submensajeProceso, setSubmensajeProceso] = useState('')
+  const [errorLectura, setErrorLectura] = useState<string | null>(null)
+  const [discordanciaRfc, setDiscordanciaRfc] = useState<{
+    curp: string
+    curpBase: string
+    rfc: string
+    rfcBase: string
+  } | null>(null)
+  const [leyendoRafaga, setLeyendoRafaga] = useState(false)
+  const timeoutRafagaRef = useRef<number | null>(null)
 
   // Nombre Completo Oficial Extraído / Editable
   const [nombreInput, setNombreInput] = useState('')
@@ -141,25 +206,208 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
   // 2. Procesamiento de Texto Detectado (Cámara, Lector Láser o Demo)
   // ---------------------------------------------------------------------------
   const procesarTextoDetectado = useCallback(
-    (rawString: string) => {
+    async (rawString: string) => {
       if (!rawString || rawString.trim().length === 0) return
+      // Candado atómico: si ya está procesando una lectura, ignorar ráfagas repetidas del lector
+      if (procesandoRef.current) return
 
-      // Destello visual de éxito
-      setEscaneoExitosoAnim(true)
-      setTimeout(() => setEscaneoExitosoAnim(false), 800)
+      procesandoRef.current = true
+      setProcesando(true)
+      setErrorLectura(null)
+      setDiscordanciaRfc(null)
 
+      const trimmed = rawString.trim()
+
+      // A. Detección prioritaria de URL / QR del SAT (Validador oficial)
+      if (
+        trimmed.includes('siat.sat.gob.mx') ||
+        trimmed.includes('validadorqr.jsf') ||
+        trimmed.includes('D3=')
+      ) {
+        setMensajeProceso('Cédula Fiscal del SAT Detectada')
+        setSubmensajeProceso('Conectando con el validador oficial del SAT y extrayendo Domicilio Fiscal...')
+
+        try {
+          const res = await api.consultarSat(trimmed)
+
+          if (res.status === 'ok' || res.status === 'partial') {
+            const rfcEncontrado = (res.rfc || '').toUpperCase()
+
+            // VALIDACIÓN ESTRICTA DE CONCORDANCIA CON CURP PREVIA
+            if (curpExtraida && rfcEncontrado) {
+              const rfcSub10 = rfcEncontrado.substring(0, 10)
+              const curpBase = curpExtraida.rfcBase.toUpperCase()
+
+              if (rfcSub10 !== curpBase) {
+                emitirBeepError()
+                setDiscordanciaRfc({
+                  curp: curpExtraida.curp,
+                  curpBase,
+                  rfc: rfcEncontrado,
+                  rfcBase: rfcSub10,
+                })
+                setErrorLectura(
+                  `Discordancia de Identidad: El RFC del SAT (${rfcEncontrado}) no corresponde a la CURP (${curpExtraida.curp}). Raíz esperada: "${curpBase}", detectada: "${rfcSub10}".`
+                )
+                return
+              }
+            }
+
+            emitirBeepExito()
+            setEscaneoExitosoAnim(true)
+            setTimeout(() => setEscaneoExitosoAnim(false), 800)
+
+            if (rfcEncontrado) setRfcCompleto(rfcEncontrado)
+            if (res.nombre) setNombreInput(res.nombre)
+            if (res.apellidoPaterno) setApellidoPaternoInput(res.apellidoPaterno)
+            if (res.apellidoMaterno) setApellidoMaternoInput(res.apellidoMaterno)
+
+            if (curpExtraida) {
+              setCurpExtraida({
+                ...curpExtraida,
+                rfcCompleto: rfcEncontrado || curpExtraida.rfcCompleto,
+                nombre: res.nombre || curpExtraida.nombre,
+                apellidoPaterno: res.apellidoPaterno || curpExtraida.apellidoPaterno,
+                apellidoMaterno: res.apellidoMaterno || curpExtraida.apellidoMaterno,
+                nombreCompleto: res.nombreCompleto || curpExtraida.nombreCompleto,
+                situacionFiscal: res.situacion,
+                regimenesFiscales: res.regimenes,
+                domicilio: res.domicilio || curpExtraida.domicilio,
+              })
+            } else if (res.curp) {
+              const curpParsed = parseCurp(res.curp)
+              if (curpParsed) {
+                setCurpExtraida({
+                  ...curpParsed,
+                  rfcCompleto: rfcEncontrado,
+                  nombre: res.nombre || curpParsed.nombre,
+                  apellidoPaterno: res.apellidoPaterno || curpParsed.apellidoPaterno,
+                  apellidoMaterno: res.apellidoMaterno || curpParsed.apellidoMaterno,
+                  nombreCompleto: res.nombreCompleto || curpParsed.nombreCompleto,
+                  situacionFiscal: res.situacion,
+                  regimenesFiscales: res.regimenes,
+                  domicilio: res.domicilio,
+                })
+              }
+            }
+
+            setEtapa('confirmacion')
+            return
+          }
+        } catch {
+          // Si el portal del SAT en vivo no responde, extraer RFC de respaldo del QR
+          const satData = parseSatQr(trimmed)
+          if (satData) {
+            const rfcEncontrado = satData.rfc.toUpperCase()
+
+            // VALIDACIÓN ESTRICTA DE CONCORDANCIA CON CURP PREVIA
+            if (curpExtraida && rfcEncontrado) {
+              const rfcSub10 = rfcEncontrado.substring(0, 10)
+              const curpBase = curpExtraida.rfcBase.toUpperCase()
+
+              if (rfcSub10 !== curpBase) {
+                emitirBeepError()
+                setDiscordanciaRfc({
+                  curp: curpExtraida.curp,
+                  curpBase,
+                  rfc: rfcEncontrado,
+                  rfcBase: rfcSub10,
+                })
+                setErrorLectura(
+                  `Discordancia de Identidad: El RFC del código SAT (${rfcEncontrado}) no corresponde a la CURP (${curpExtraida.curp}). Raíz esperada: "${curpBase}", detectada: "${rfcSub10}".`
+                )
+                return
+              }
+            }
+
+            emitirBeepExito()
+            setEscaneoExitosoAnim(true)
+            setTimeout(() => setEscaneoExitosoAnim(false), 800)
+
+            setRfcCompleto(satData.rfc)
+            if (curpExtraida) {
+              setCurpExtraida({
+                ...curpExtraida,
+                rfcCompleto: satData.rfc,
+              })
+            }
+            setEtapa('confirmacion')
+            return
+          }
+        } finally {
+          procesandoRef.current = false
+          setProcesando(false)
+        }
+      }
+
+      // B. Etapa CURP (Constancia RENAPO con delimitadores o directa)
       if (etapa === 'curp') {
+        setMensajeProceso('Constancia de CURP Detectada')
+        setSubmensajeProceso('Decodificando Nombres, Fecha de Nacimiento y Entidad...')
+
+        await new Promise((resolve) => setTimeout(resolve, 200))
+
         const resultado = parseCurp(rawString)
         if (resultado) {
+          emitirBeepExito()
+          setEscaneoExitosoAnim(true)
+          setTimeout(() => setEscaneoExitosoAnim(false), 800)
           setCurpExtraida(resultado)
           if (resultado.nombre) setNombreInput(resultado.nombre)
           if (resultado.apellidoPaterno) setApellidoPaternoInput(resultado.apellidoPaterno)
           if (resultado.apellidoMaterno) setApellidoMaternoInput(resultado.apellidoMaterno)
           setEtapa('sat_opcional')
+        } else {
+          emitirBeepError()
+          if (parseSatQr(rawString)) {
+            setErrorLectura('Detectamos un código de RFC (13 caracteres), pero en este primer paso se requiere la Constancia de CURP (18 caracteres) de RENAPO.')
+          } else {
+            setErrorLectura('El código escaneado no corresponde a una CURP oficial de 18 caracteres de RENAPO.')
+          }
         }
-      } else if (etapa === 'sat_opcional') {
+
+        procesandoRef.current = false
+        setProcesando(false)
+        return
+      }
+
+      // C. Etapa RFC / SAT (Código de barras 1D de 13 dígitos o entrada manual)
+      if (etapa === 'sat_opcional') {
+        setMensajeProceso('Código de RFC Detectado')
+        setSubmensajeProceso('Verificando homoclave de 13 caracteres...')
+
+        await new Promise((resolve) => setTimeout(resolve, 180))
+
         const satData = parseSatQr(rawString)
         if (satData) {
+          const rfcEncontrado = satData.rfc.toUpperCase()
+
+          // VALIDACIÓN ESTRICTA DE CONCORDANCIA CON CURP PREVIA
+          if (curpExtraida) {
+            const rfcSub10 = rfcEncontrado.substring(0, 10)
+            const curpBase = curpExtraida.rfcBase.toUpperCase()
+
+            if (rfcSub10 !== curpBase) {
+              emitirBeepError()
+              setDiscordanciaRfc({
+                curp: curpExtraida.curp,
+                curpBase,
+                rfc: rfcEncontrado,
+                rfcBase: rfcSub10,
+              })
+              setErrorLectura(
+                `Discordancia de Identidad: El RFC escaneado (${rfcEncontrado}) no coincide con la CURP (${curpExtraida.curp}). La raíz esperada era "${curpBase}" pero se detectó "${rfcSub10}".`
+              )
+              procesandoRef.current = false
+              setProcesando(false)
+              return
+            }
+          }
+
+          emitirBeepExito()
+          setEscaneoExitosoAnim(true)
+          setTimeout(() => setEscaneoExitosoAnim(false), 800)
+
           setRfcCompleto(satData.rfc)
           if (curpExtraida) {
             setCurpExtraida({
@@ -172,8 +420,18 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
             })
           }
           setEtapa('confirmacion')
+        } else {
+          emitirBeepError()
+          setErrorLectura('No se detectó un RFC oficial de 13 caracteres ni código de la constancia SAT.')
         }
+
+        procesandoRef.current = false
+        setProcesando(false)
+        return
       }
+
+      procesandoRef.current = false
+      setProcesando(false)
     },
     [etapa, curpExtraida]
   )
@@ -213,7 +471,8 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
       if (
         videoRef.current &&
         videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA &&
-        etapa !== 'confirmacion'
+        etapa !== 'confirmacion' &&
+        !procesandoRef.current
       ) {
         try {
           const barcodes = await detector.detect(videoRef.current)
@@ -268,16 +527,28 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
       if (e.key === 'Enter') {
         const textCapturado = bufferLectorRef.current.trim()
         bufferLectorRef.current = ''
+        setLeyendoRafaga(false)
+        if (timeoutRafagaRef.current) clearTimeout(timeoutRafagaRef.current)
         if (textCapturado.length >= 10) {
           procesarTextoDetectado(textCapturado)
         }
       } else if (e.key.length === 1) {
         bufferLectorRef.current += e.key
+        if (bufferLectorRef.current.length >= 4) {
+          setLeyendoRafaga(true)
+          if (timeoutRafagaRef.current) clearTimeout(timeoutRafagaRef.current)
+          timeoutRafagaRef.current = window.setTimeout(() => {
+            setLeyendoRafaga(false)
+          }, 400)
+        }
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      if (timeoutRafagaRef.current) clearTimeout(timeoutRafagaRef.current)
+    }
   }, [procesarTextoDetectado])
 
   // ---------------------------------------------------------------------------
@@ -344,6 +615,9 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
       apellidoMaterno: mat || curpExtraida.apellidoMaterno,
       nombreCompleto: completo || curpExtraida.nombreCompleto,
       rfcCompleto: rfcCompleto || curpExtraida.rfcCompleto,
+      domicilio: curpExtraida.domicilio,
+      situacionFiscal: curpExtraida.situacionFiscal,
+      regimenesFiscales: curpExtraida.regimenesFiscales,
     }
 
     onConfirmar(datosFinales, marcadoComoReingreso)
@@ -359,6 +633,43 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
         )}
 
         {/* ========================================================================= */}
+        {/* OVERLAY TÁCTICO DE PROCESAMIENTO EN TIEMPO REAL                           */}
+        {/* ========================================================================= */}
+        {procesando && (
+          <div className="absolute inset-0 z-50 bg-[#0A162B]/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-150">
+            <div className="relative mb-5">
+              {/* Anillo de Carga Dorado Giratorio */}
+              <div className="w-20 h-20 rounded-full border-4 border-slate-800 border-t-[#D4AF37] animate-spin shadow-xl" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Barcode className="w-8 h-8 text-[#D4AF37] animate-pulse" />
+              </div>
+            </div>
+
+            <div className="space-y-2 max-w-sm">
+              <span className="text-[10px] font-black tracking-widest text-[#D4AF37] uppercase bg-amber-500/10 px-3 py-1 rounded-full border border-[#D4AF37]/30 inline-block shadow-sm">
+                Lectura en Proceso
+              </span>
+              <h3 className="text-base sm:text-lg font-black text-white">
+                {mensajeProceso || 'Procesando Documento...'}
+              </h3>
+              <p className="text-xs text-slate-300 font-medium leading-relaxed">
+                {submensajeProceso || 'Por favor espera un momento mientras decodificamos y validamos la información.'}
+              </p>
+            </div>
+
+            {/* Barra de Progreso Indeterminada */}
+            <div className="w-56 h-2 bg-slate-800 rounded-full mt-6 overflow-hidden relative border border-slate-700">
+              <div className="h-full bg-gradient-to-r from-amber-500 via-[#D4AF37] to-amber-200 rounded-full w-28 animate-[pulse_1s_ease-in-out_infinite]" />
+            </div>
+
+            <p className="text-[10px] text-slate-400 font-bold mt-4 flex items-center gap-1.5">
+              <span>🔒</span>
+              <span>Por favor no retires el documento ni dispares nuevamente</span>
+            </p>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
         {/* CABECERA INSTITUCIONAL TÁCTICA                                            */}
         {/* ========================================================================= */}
         <div className="p-5 border-b-2 border-slate-800 bg-[#060E1C] flex items-center justify-between gap-3">
@@ -368,18 +679,38 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
             </div>
             <div>
               <h2 className="text-sm sm:text-base font-black text-white tracking-wide">
-                CEPS Paso del Norte &bull; Abordaje en Campo
+                Verificación y Escaneo de Documentos
               </h2>
               <p className="text-[11px] text-[#D4AF37] font-bold tracking-widest uppercase">
-                Validación de Identidad &bull; CURP &amp; RFC Oficial
+                Validación de Identidad y Consulta de Restricciones
               </p>
             </div>
           </div>
 
           {/* Indicador de Estado del Lector Láser */}
-          <div className="hidden sm:flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-700 text-[11px] font-bold text-slate-300">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>Lector Láser HID Listo</span>
+          <div className="flex items-center gap-2">
+            <div
+              className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[11px] font-bold transition ${
+                leyendoRafaga || procesando
+                  ? 'bg-amber-500/20 border-[#D4AF37] text-amber-300'
+                  : 'bg-slate-900 border-slate-700 text-slate-300'
+              }`}
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  leyendoRafaga || procesando
+                    ? 'bg-amber-400 animate-ping'
+                    : 'bg-emerald-400 animate-pulse'
+                }`}
+              />
+              <span>
+                {leyendoRafaga
+                  ? 'Leyendo código...'
+                  : procesando
+                  ? 'Procesando datos...'
+                  : 'Lector Láser HID Listo'}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -401,6 +732,23 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                 de inmediato tu CURP, Nombre Completo, fecha de nacimiento y entidad.
               </p>
             </div>
+
+            {/* Alerta de Error de Lectura */}
+            {errorLectura && (
+              <div className="w-full max-w-md p-3.5 bg-rose-500/15 border-2 border-rose-500/40 rounded-2xl flex items-center justify-between gap-3 text-rose-300 text-xs font-semibold animate-in fade-in">
+                <div className="flex items-center gap-2.5">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0 text-rose-400" />
+                  <span>{errorLectura}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setErrorLectura(null)}
+                  className="text-slate-400 hover:text-white text-sm px-1 font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
             {/* Visor de Cámara en Vivo con Mira de Encuadre */}
             <div className="relative w-full max-w-md h-60 sm:h-64 bg-black rounded-2xl overflow-hidden border-2 border-slate-700 shadow-inner flex items-center justify-center">
@@ -496,7 +844,7 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                       maxLength={18}
                       value={inputCurpManual}
                       onChange={(e) => setInputCurpManual(e.target.value.toUpperCase().trim())}
-                      placeholder="Ej: RULG861230HCHZZS06"
+                      placeholder="Ej: ABCD800101HDFRRN01"
                       className="flex-1 px-3 py-2 bg-slate-950 border-2 border-slate-700 rounded-xl font-mono text-xs font-bold text-white uppercase outline-none focus:border-[#D4AF37]"
                     />
                     <button
@@ -531,37 +879,161 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                 CURP RENAPO Verificada: {curpExtraida.curp}
               </span>
               <h3 className="text-lg sm:text-xl font-extrabold text-white mt-2">
-                ¿Cuentas con tu Cédula del SAT o RFC con Homoclave?
+                ¿Cuentas con tu Cédula del SAT o Constancia Fiscal?
               </h3>
               <p className="text-xs text-slate-400 max-w-md mx-auto">
-                Escanea el código QR de tu constancia o ingresa tu RFC completo de 13 posiciones
-                para registrar tu homoclave oficial, o continúa con tu RFC base prellenado.
+                Apunta tu escáner al código de barras (1D) para registrar tu RFC con homoclave,
+                o escanea el código QR del SAT para consultar y precargar tu Domicilio Fiscal oficial.
               </p>
             </div>
 
-            {/* Entrada Rápida de RFC con Homoclave */}
+            {/* ALERTA DE DISCORDANCIA DE IDENTIDAD (CURP vs RFC) */}
+            {discordanciaRfc && (
+              <div className="w-full max-w-md p-4 bg-rose-950/80 border-2 border-rose-500 rounded-2xl space-y-3 text-rose-200 animate-in fade-in shadow-2xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-rose-400 font-black text-xs uppercase tracking-wider">
+                    <ShieldAlert className="w-4 h-4 text-rose-400 animate-pulse" />
+                    <span>Discordancia de Identidad Detectada</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDiscordanciaRfc(null)
+                      setErrorLectura(null)
+                    }}
+                    className="text-slate-400 hover:text-white text-xs font-bold px-1"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <p className="text-xs text-slate-200 leading-relaxed font-medium">
+                  El RFC escaneado no corresponde a la misma persona que la CURP registrada.
+                  Por normativa oficial, los primeros 10 caracteres deben ser idénticos:
+                </p>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
+                  <div className="bg-[#0A162B] p-2.5 rounded-xl border border-emerald-500/50">
+                    <span className="text-[10px] text-emerald-400 block font-sans font-bold uppercase tracking-wider">
+                      CURP Registrada
+                    </span>
+                    <span className="text-white font-bold block truncate" title={discordanciaRfc.curp}>
+                      {discordanciaRfc.curp}
+                    </span>
+                    <span className="text-[10px] text-slate-300 block mt-1 font-sans">
+                      Raíz: <strong className="text-emerald-400 font-mono text-xs">{discordanciaRfc.curpBase}</strong>
+                    </span>
+                  </div>
+
+                  <div className="bg-[#0A162B] p-2.5 rounded-xl border border-rose-500/70">
+                    <span className="text-[10px] text-rose-400 block font-sans font-bold uppercase tracking-wider">
+                      RFC Escaneado
+                    </span>
+                    <span className="text-rose-200 font-bold block truncate" title={discordanciaRfc.rfc}>
+                      {discordanciaRfc.rfc}
+                    </span>
+                    <span className="text-[10px] text-slate-300 block mt-1 font-sans">
+                      Raíz: <strong className="text-rose-400 font-mono text-xs">{discordanciaRfc.rfcBase}</strong>
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20 text-[11px] text-rose-300 flex items-center justify-between gap-2">
+                  <span>⚠️ Verifica que el documento físico corresponda a este aspirante.</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDiscordanciaRfc(null)
+                      setErrorLectura(null)
+                      setInputRfcManual('')
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-[10px] uppercase shrink-0 transition shadow-sm"
+                  >
+                    Reintentar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Alerta de Error de Lectura Genérica */}
+            {errorLectura && !discordanciaRfc && (
+              <div className="w-full max-w-md p-3.5 bg-rose-500/15 border-2 border-rose-500/40 rounded-2xl flex items-center justify-between gap-3 text-rose-300 text-xs font-semibold animate-in fade-in">
+                <div className="flex items-center gap-2.5">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0 text-rose-400" />
+                  <span>{errorLectura}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setErrorLectura(null)}
+                  className="text-slate-400 hover:text-white text-sm px-1 font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            {/* Guía Visual Táctica de Opciones de Escaneo */}
+            <div className="w-full max-w-md grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+              <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-700 flex flex-col gap-1">
+                <div className="flex items-center gap-1.5 text-amber-400 font-bold">
+                  <Barcode className="w-4 h-4" />
+                  <span>Opción A: Código 1D</span>
+                </div>
+                <p className="text-[11px] text-slate-300">
+                  Arroja tu RFC literal de 13 caracteres con homoclave.
+                </p>
+              </div>
+
+              <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-700 flex flex-col gap-1">
+                <div className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                  <QrCode className="w-4 h-4" />
+                  <span>Opción B: Código QR</span>
+                </div>
+                <p className="text-[11px] text-slate-300">
+                  Enlaza a tu Cédula Fiscal y autollena tu Domicilio y Régimen.
+                </p>
+              </div>
+            </div>
+
+            {/* Entrada Rápida de RFC con Homoclave o Enlace QR */}
             <div className="w-full max-w-md bg-slate-900 p-4 rounded-2xl border border-slate-700 space-y-3">
               <label className="text-xs font-bold text-slate-300 block">
-                RFC con Homoclave (13 Caracteres):
+                RFC con Homoclave o Pegar Enlace del SAT:
               </label>
               <div className="flex gap-2">
                 <input
                   type="text"
-                  maxLength={13}
                   value={inputRfcManual}
-                  onChange={(e) => setInputRfcManual(e.target.value.toUpperCase().trim())}
+                  onChange={(e) => {
+                    const val = e.target.value.trim()
+                    if (val.includes('sat.gob.mx') || val.includes('validadorqr.jsf')) {
+                      procesarTextoDetectado(val)
+                      setInputRfcManual('')
+                    } else {
+                      setInputRfcManual(val.toUpperCase())
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      if (inputRfcManual) {
+                        procesarTextoDetectado(inputRfcManual)
+                      }
+                    }
+                  }}
                   placeholder={`Ej: ${curpExtraida.rfcBase}7C5`}
                   className="flex-1 px-3 py-2 bg-slate-950 border-2 border-slate-700 rounded-xl font-mono text-xs font-bold text-white uppercase outline-none focus:border-[#D4AF37]"
                 />
                 <button
                   type="button"
-                  disabled={inputRfcManual.length !== 13}
+                  disabled={inputRfcManual.length < 10 || procesando}
                   onClick={() => {
                     procesarTextoDetectado(inputRfcManual)
                   }}
-                  className="px-4 py-2 rounded-xl text-xs font-black bg-emerald-500 text-slate-950 hover:bg-emerald-400 transition disabled:opacity-50"
+                  className="px-4 py-2 rounded-xl text-xs font-black bg-emerald-500 text-slate-950 hover:bg-emerald-400 transition disabled:opacity-50 flex items-center gap-1"
                 >
-                  Registrar RFC
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Validar</span>
                 </button>
               </div>
             </div>
@@ -598,10 +1070,47 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
               </p>
             </div>
 
-            {/* CANDADO DE DUPLICIDAD / REINGRESO (SOLO SI REALMENTE HAY DUPLICIDAD U HOMÓNIMO) */}
+            {/* CANDADO DE DUPLICIDAD / NO CONTRATABLE / REINGRESO */}
             {resultadoDuplicidad && (resultadoDuplicidad.esDuplicadoCurp || resultadoDuplicidad.esHomonimo) && (
               <div className="w-full">
-                {resultadoDuplicidad.esDuplicadoCurp ? (
+                {resultadoDuplicidad.estado === 'no_contratable' ? (
+                  <div className="bg-red-950/80 border-2 border-red-500 p-5 rounded-2xl shadow-2xl space-y-3">
+                    <div className="flex items-center gap-3 text-red-400 border-b border-red-800 pb-2.5">
+                      <ShieldAlert className="w-8 h-8 flex-shrink-0 animate-bounce text-red-500" />
+                      <div>
+                        <h4 className="font-black text-sm text-white uppercase tracking-wide">
+                          🚫 CANDIDATO SIN POSIBILIDAD DE APLICACIÓN
+                        </h4>
+                        <p className="text-xs text-red-300 font-bold">
+                          Veto Administrativo Activo &bull; Decisión Registrada por Dirección General
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-[#060E1C] p-3.5 rounded-xl border border-red-900/80 space-y-2 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400 uppercase font-bold">Folio de Antecedente:</span>
+                        <span className="font-mono font-black text-[#D4AF37]">{resultadoDuplicidad.folioExistente}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400 uppercase font-bold">Aspirante:</span>
+                        <span className="font-black text-white">{resultadoDuplicidad.nombreExistente}</span>
+                      </div>
+                      <div className="border-t border-slate-800 pt-2">
+                        <span className="text-red-400 uppercase font-bold block mb-1">Motivo Registrado de Baja/Veto:</span>
+                        <p className="text-slate-200 font-semibold bg-red-950/40 p-2.5 rounded-lg border border-red-900/50">
+                          {resultadoDuplicidad.coincidencia?.motivoNoContratable || 'Baja no favorable con restricción de recontratación.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-red-900/40 border border-red-500/50 py-2.5 px-3.5 rounded-xl text-center">
+                      <p className="text-xs text-red-200 font-black">
+                        ⛔ INSTRUCCIÓN EN CAMPO: Suspender captura de inmediato. Notificar cordialmente al postulante que no cumple con las políticas de reingreso.
+                      </p>
+                    </div>
+                  </div>
+                ) : resultadoDuplicidad.esDuplicadoCurp ? (
                   <div className="bg-rose-950/40 border-2 border-rose-500 p-4 sm:p-5 rounded-2xl shadow-xl space-y-3">
                     <div className="flex items-center gap-3 text-rose-400 border-b border-rose-800/80 pb-2.5">
                       <ShieldAlert className="w-6 h-6 flex-shrink-0 animate-pulse text-rose-500" />
@@ -670,7 +1179,7 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
 
             {/* Ficha Táctica de Identidad */}
             <div className="bg-[#060E1C] border-2 border-[#D4AF37] p-5 sm:p-6 rounded-2xl shadow-xl space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex flex-wrap items-center justify-between border-b border-slate-800 pb-3 gap-2">
                 <div className="flex items-center gap-2.5">
                   <FileCheck className="w-5 h-5 text-[#D4AF37]" />
                   <span className="font-mono font-black text-xs sm:text-sm text-white uppercase tracking-wider">
@@ -709,7 +1218,7 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                     <input
                       type="text"
                       required
-                      placeholder="Ej: GUSTAVO ALONSO"
+                      placeholder="Ej: JUAN CARLOS"
                       value={nombreInput}
                       onChange={(e) => setNombreInput(e.target.value.toUpperCase())}
                       className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs font-bold text-white uppercase outline-none focus:border-[#D4AF37]"
@@ -723,7 +1232,7 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                     <input
                       type="text"
                       required
-                      placeholder="Ej: RUIZ"
+                      placeholder="Ej: HERNÁNDEZ"
                       value={apellidoPaternoInput}
                       onChange={(e) => setApellidoPaternoInput(e.target.value.toUpperCase())}
                       className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs font-bold text-white uppercase outline-none focus:border-[#D4AF37]"
@@ -737,7 +1246,7 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                     <input
                       type="text"
                       required
-                      placeholder="Ej: LOZANO"
+                      placeholder="Ej: PÉREZ"
                       value={apellidoMaternoInput}
                       onChange={(e) => setApellidoMaternoInput(e.target.value.toUpperCase())}
                       className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs font-bold text-white uppercase outline-none focus:border-[#D4AF37]"
@@ -791,8 +1300,47 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                   <span className="font-extrabold text-[#D4AF37] font-mono text-sm mt-0.5 block">
                     {curpExtraida.rfcCompleto || curpExtraida.rfcBase}
                   </span>
+                  {curpExtraida.situacionFiscal && (
+                    <span className="text-[10px] font-black uppercase text-emerald-400 mt-1 inline-block">
+                      ✓ SAT: {curpExtraida.situacionFiscal}
+                    </span>
+                  )}
                 </div>
               </div>
+
+              {/* Ficha de Domicilio Fiscal Oficial Extraído del SAT */}
+              {curpExtraida.domicilio && (
+                <div className="bg-slate-900/90 p-4 rounded-xl border border-emerald-500/40 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-[#D4AF37] flex items-center gap-1.5">
+                      <Home className="w-3.5 h-3.5" />
+                      Domicilio Fiscal Oficial Registrado en el SAT
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/50 px-2 py-0.5 rounded flex items-center gap-1">
+                      <Check className="w-3 h-3 text-emerald-400" />
+                      Se precargará en Paso 3
+                    </span>
+                  </div>
+                  <div className="text-xs text-white font-bold">
+                    <p className="text-slate-100 font-extrabold">
+                      {curpExtraida.domicilio.calleNumero || curpExtraida.domicilio.direccionCompleta}
+                    </p>
+                    <p className="text-slate-400 font-semibold text-[11px] mt-0.5">
+                      Col. {curpExtraida.domicilio.colonia} &bull; C.P. {curpExtraida.domicilio.codigoPostal} &bull; {curpExtraida.domicilio.municipio || 'Juárez'}, {curpExtraida.domicilio.estado || 'Chihuahua'}
+                    </p>
+                  </div>
+                  {curpExtraida.regimenesFiscales && curpExtraida.regimenesFiscales.length > 0 && (
+                    <div className="pt-2 border-t border-slate-800/80 flex flex-wrap items-center gap-1.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Regímenes:</span>
+                      {curpExtraida.regimenesFiscales.map((reg, idx) => (
+                        <span key={idx} className="text-[10px] bg-slate-800 text-amber-200 border border-amber-500/30 px-2 py-0.5 rounded font-semibold">
+                          {reg}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Acciones de Confirmación */}
@@ -817,22 +1365,39 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
                 <button
                   type="button"
                   onClick={manejarConfirmarFinal}
-                  disabled={Boolean(resultadoDuplicidad?.esDuplicadoCurp && !marcadoComoReingreso)}
+                  disabled={Boolean(
+                    resultadoDuplicidad?.estado === 'no_contratable' ||
+                    (resultadoDuplicidad?.esDuplicadoCurp && !marcadoComoReingreso)
+                  )}
                   className={`w-full sm:w-auto py-3 px-6 rounded-xl text-xs font-black transition shadow-xl flex items-center justify-center gap-2 ${
-                    resultadoDuplicidad?.esDuplicadoCurp && !marcadoComoReingreso
+                    resultadoDuplicidad?.estado === 'no_contratable'
+                      ? 'bg-red-950/80 text-red-400 cursor-not-allowed border-2 border-red-500'
+                      : resultadoDuplicidad?.esDuplicadoCurp && !marcadoComoReingreso
                       ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
                       : 'bg-[#D4AF37] text-[#0A162B] hover:bg-amber-400 hover:scale-102 cursor-pointer'
                   }`}
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Confirmar e Iniciar Solicitud Digital</span>
+                  <span>
+                    {resultadoDuplicidad?.estado === 'no_contratable'
+                      ? 'Captura Bloqueada (No Contratable)'
+                      : 'Confirmar e Iniciar Solicitud Digital'}
+                  </span>
                 </button>
 
-                {resultadoDuplicidad?.esDuplicadoCurp && !marcadoComoReingreso && (
-                  <span className="text-[10px] text-rose-400 font-bold">
-                    * Requiere autorizar expediente de reingreso para continuar
+                {resultadoDuplicidad?.estado === 'no_contratable' && (
+                  <span className="text-[10px] text-red-400 font-bold">
+                    * Candidato sin posibilidad de aplicación por veto administrativo
                   </span>
                 )}
+
+                {resultadoDuplicidad?.esDuplicadoCurp &&
+                  resultadoDuplicidad?.estado !== 'no_contratable' &&
+                  !marcadoComoReingreso && (
+                    <span className="text-[10px] text-rose-400 font-bold">
+                      * Requiere autorizar expediente de reingreso para continuar
+                    </span>
+                  )}
               </div>
             </div>
           </div>
@@ -842,7 +1407,7 @@ export const DocumentScannerGate: React.FC<DocumentScannerGateProps> = ({
         {/* PIE INSTITUCIONAL CEPS                                                    */}
         {/* ========================================================================= */}
         <div className="px-6 py-3 bg-[#060E1C] border-t border-slate-800/80 flex flex-wrap items-center justify-between text-[11px] text-slate-500">
-          <span>Protocolo de Protección Patrimonial &bull; Célula 0</span>
+          <span>Protocolo de Seguridad Patrimonial &bull; Verificación de Identidad</span>
           <span>Validación Algorítmica RENAPO / SAT</span>
         </div>
       </div>

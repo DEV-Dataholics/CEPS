@@ -1,9 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import {
   Search,
-  Filter,
   CheckCircle2,
-  AlertCircle,
   AlertTriangle,
   ShieldCheck,
   Brain,
@@ -12,21 +10,15 @@ import {
   Sparkles,
   UserCheck,
   Smartphone,
-  Eye,
   ArrowRight,
   Save,
-  Clock,
   Tag,
   MapPin,
-  Phone,
   User,
-  Award,
   X,
-  ChevronRight,
-  Lock,
-  RotateCcw,
   Check,
-  ExternalLink,
+  ShieldAlert,
+  Tablet,
 } from 'lucide-react'
 import {
   useVacancyStore,
@@ -36,7 +28,6 @@ import {
   type AltaDispensaData,
 } from '../store/vacancyStore'
 import { evaluarRazonamiento, calcularAuditoriaIntegridad } from '../store/dossierStore'
-import { useAuthStore } from '../store/authStore'
 import type {
   ExamenRazonamientoRespuestas,
   CuestionarioEntrevistaRespuestas,
@@ -116,9 +107,9 @@ export const CandidateManagementView: React.FC<CandidateManagementViewProps> = (
     guardarCuestionarioIntegridad,
     actualizarChecklistPapeleria,
     darDeAltaCandidato,
+    habilitarExamen,
+    setNoContratable,
   } = useVacancyStore()
-
-  const { rolActivo } = useAuthStore()
 
   // Estados de interfaz y filtrado
   const [busqueda, setBusqueda] = useState('')
@@ -131,6 +122,8 @@ export const CandidateManagementView: React.FC<CandidateManagementViewProps> = (
   const [autorizadorDispensa, setAutorizadorDispensa] = useState('Eunice Lira (Supervisora RH)')
   const [toastMensaje, setToastMensaje] = useState<string | null>(null)
   const [modalExitoAlta, setModalExitoAlta] = useState<AspiranteSolicitud | null>(null)
+  const [modalVetoAbierto, setModalVetoAbierto] = useState(false)
+  const [motivoVeto, setMotivoVeto] = useState('')
 
   // Estados temporales de edición para el candidato seleccionado
   const [tempRazonamiento, setTempRazonamiento] = useState<ExamenRazonamientoRespuestas>(defaultRazonamientoRespuestas)
@@ -237,7 +230,7 @@ export const CandidateManagementView: React.FC<CandidateManagementViewProps> = (
   }
 
   // Guardar Checklist de Papelería
-  const handleToggleDocumento = (docKey: keyof ChecklistPapeleriaOriginal, label: string) => {
+  const handleToggleDocumento = (docKey: keyof ChecklistPapeleriaOriginal, _label: string) => {
     const nuevoValor = !tempChecklist[docKey]
     const updated = { ...tempChecklist, [docKey]: nuevoValor }
 
@@ -322,7 +315,7 @@ export const CandidateManagementView: React.FC<CandidateManagementViewProps> = (
                 <h1 className="text-lg font-black text-[#0A162B] tracking-tight flex items-center gap-2">
                   Gestión y Evaluación de Candidatos
                   <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
-                    Paso 2 &bull; Selección Oficial CEPS
+                    Selección y Filtro Operativo
                   </span>
                 </h1>
                 <p className="text-xs font-semibold text-slate-600">
@@ -598,7 +591,106 @@ export const CandidateManagementView: React.FC<CandidateManagementViewProps> = (
                 )}
               </div>
 
-              {/* NAVEGACIÓN DE PESTAÑAS DE EVALUACIÓN */}
+              {/* ALERTA DE VETO ADMINISTRATIVO (NO CONTRATABLE) */}
+              {candidatoActivo.noContratable && (
+                <div className="bg-red-950 border-b-2 border-red-500 px-4 py-2.5 flex items-center justify-between gap-3 text-white">
+                  <div className="flex items-center gap-2.5">
+                    <ShieldAlert className="w-5 h-5 text-red-400 animate-pulse" />
+                    <div>
+                      <span className="font-black text-xs text-red-200 uppercase tracking-wide block">
+                        🚫 Aspirante con Veto Administrativo Activo ("No Contratable")
+                      </span>
+                      <span className="text-[11px] text-red-300 font-semibold">
+                        Motivo: {candidatoActivo.motivoNoContratable || 'Restricción de ingreso'} &bull; Fecha: {candidatoActivo.fechaNoContratable || 'Vigente'}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setNoContratable(candidatoActivo.id, false)
+                      mostrarToast(`Veto administrativo retirado para ${candidatoActivo.nombre}.`)
+                    }}
+                    className="px-3 py-1.5 bg-red-800 hover:bg-red-700 text-white font-bold text-xs rounded-xl border border-red-400 transition"
+                  >
+                    Levantar Veto
+                  </button>
+                </div>
+              )}
+
+              {/* BARRA DE HABILITACIÓN INDIVIDUAL DE EXÁMENES (ADMINISTRADOR DE VACANTES) */}
+              <div className="bg-[#0A162B] text-slate-200 px-4 py-2.5 border-b-2 border-slate-700 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-[#D4AF37] flex items-center gap-1.5">
+                    <Tablet className="w-3.5 h-3.5" />
+                    Exámenes en Tablet:
+                  </span>
+
+                  {/* Switch Examen Razonamiento */}
+                  <label className="flex items-center gap-2 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-700 text-xs font-semibold cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={candidatoActivo.examenesHabilitados?.razonamiento ?? true}
+                      onChange={(e) => {
+                        habilitarExamen(candidatoActivo.id, 'razonamiento', e.target.checked)
+                        mostrarToast(`Examen de Razonamiento ${e.target.checked ? 'Habilitado' : 'Deshabilitado'} en Tablet.`)
+                      }}
+                      className="w-3.5 h-3.5 accent-[#D4AF37] rounded"
+                    />
+                    <span>Razonamiento (VER5)</span>
+                    {candidatoActivo.evaluacionRazonamiento ? (
+                      <span className="text-[9px] font-black uppercase text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-500/40">
+                        ✓ Respondido
+                      </span>
+                    ) : (candidatoActivo.examenesHabilitados?.razonamiento ?? true) ? (
+                      <span className="text-[9px] font-black uppercase text-amber-400 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-500/40">
+                        ⏳ En Espera de Tablet
+                      </span>
+                    ) : (
+                      <span className="text-[9px] font-black uppercase text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">
+                        Bloqueado
+                      </span>
+                    )}
+                  </label>
+
+                  {/* Switch Entrevista */}
+                  <label className="flex items-center gap-2 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-700 text-xs font-semibold cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={candidatoActivo.examenesHabilitados?.entrevista ?? true}
+                      onChange={(e) => {
+                        habilitarExamen(candidatoActivo.id, 'entrevista', e.target.checked)
+                        mostrarToast(`Entrevista RH ${e.target.checked ? 'Habilitada' : 'Deshabilitada'}.`)
+                      }}
+                      className="w-3.5 h-3.5 accent-blue-400 rounded"
+                    />
+                    <span>Entrevista Integridad</span>
+                    {candidatoActivo.cuestionarioIntegridad ? (
+                      <span className="text-[9px] font-black uppercase text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-500/40">
+                        ✓ Respondido
+                      </span>
+                    ) : (
+                      <span className="text-[9px] font-black uppercase text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">
+                        Pendiente
+                      </span>
+                    )}
+                  </label>
+                </div>
+
+                {/* Botón de Veto Manual para Administrador */}
+                {!candidatoActivo.noContratable && (
+                  <button
+                    onClick={() => {
+                      setMotivoVeto('')
+                      setModalVetoAbierto(true)
+                    }}
+                    className="px-2.5 py-1 text-[11px] font-bold text-red-400 hover:text-white bg-red-950/40 hover:bg-red-900/80 border border-red-800 rounded-lg transition flex items-center gap-1.5"
+                    title="Marcar manualmente a esta persona como No Contratable"
+                  >
+                    <ShieldAlert className="w-3.5 h-3.5" />
+                    <span>Marcar No Contratable</span>
+                  </button>
+                )}
+              </div>
               <div className="bg-[#F8FAFC] border-b-2 border-slate-200 px-4 py-2 flex items-center gap-2 overflow-x-auto">
                 <button
                   onClick={() => setPestañaActiva('solicitud')}
@@ -721,8 +813,8 @@ export const CandidateManagementView: React.FC<CandidateManagementViewProps> = (
                     {/* SEMÁFORO RESUMEN PARA ALTA */}
                     <div className="bg-white p-5 rounded-2xl border-2 border-slate-300 shadow-sm space-y-3">
                       <h3 className="text-sm font-extrabold text-[#0A162B] flex items-center justify-between">
-                        <span>Checklist Integral de Reclutamiento &bull; Requisitos para Alta</span>
-                        <span className="text-xs font-bold text-slate-500">Gobernanza CEPS</span>
+                        <span>Requisitos Obligatorios para Alta Operativa</span>
+                        <span className="text-xs font-bold text-slate-500">Control de Calidad</span>
                       </h3>
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -1404,6 +1496,66 @@ export const CandidateManagementView: React.FC<CandidateManagementViewProps> = (
               >
                 <Check className="w-4 h-4" />
                 <span>Autorizar y Dar de Alta</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PARA MARCAR NO CONTRATABLE (VETO ADMINISTRATIVO) */}
+      {modalVetoAbierto && candidatoActivo && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white max-w-md w-full rounded-2xl border-2 border-red-500 shadow-2xl p-6 space-y-4">
+            <div className="flex items-center gap-3 border-b border-slate-200 pb-3">
+              <div className="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center">
+                <ShieldAlert className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-[#0A162B]">Veto Administrativo Operativo</h3>
+                <p className="text-xs text-slate-600 font-semibold">Marcar aspirante como No Contratable</p>
+              </div>
+            </div>
+
+            <div className="text-xs text-slate-700 space-y-2.5">
+              <p>
+                Al marcar a <strong>{candidatoActivo.nombre} {candidatoActivo.apellidoPaterno}</strong> como "No Contratable", cualquier intento futuro de captura en campo mediante escaneo de su CURP quedará bloqueado con advertencia de ineligibilidad.
+              </p>
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                  Motivo Administrativo del Veto / Sanción *
+                </label>
+                <textarea
+                  rows={3}
+                  value={motivoVeto}
+                  onChange={(e) => setMotivoVeto(e.target.value)}
+                  placeholder="Ejemplo: Abandono de servicio en caseta sin relevo / Incumplimiento de consignas operativas..."
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 outline-none focus:border-red-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setModalVetoAbierto(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!motivoVeto.trim()) {
+                    alert('Por favor capture el motivo del veto.')
+                    return
+                  }
+                  setNoContratable(candidatoActivo.id, true, motivoVeto.trim())
+                  setModalVetoAbierto(false)
+                  mostrarToast(`${candidatoActivo.nombre} fue marcado como No Contratable.`)
+                }}
+                className="px-4 py-2 text-xs font-black bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-md cursor-pointer"
+              >
+                Confirmar Veto Administrativo
               </button>
             </div>
           </div>

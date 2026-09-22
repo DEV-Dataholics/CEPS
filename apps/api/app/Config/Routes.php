@@ -8,4 +8,5 @@ $routes->get('/', 'Home::index');
 $routes->group('api/v1', static function ($routes) {
     $routes->get('health', 'Health::index');
     $routes->get('geocoding/reverse', 'Geocoding::reverse');
+    $routes->get('sat/consultar', 'SatValidator::consultar');
 });

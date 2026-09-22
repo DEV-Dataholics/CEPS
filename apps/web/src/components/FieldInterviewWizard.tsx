@@ -329,7 +329,7 @@ export const FieldInterviewWizard: React.FC<FieldInterviewWizardProps> = ({
         {
           fecha: new Date().toISOString().replace('T', ' ').substring(0, 16),
           tipo: 'solicitud_completada',
-          descripcion: 'Solicitud de empleo digital capturada en tablet sin tachaduras.',
+          descripcion: 'Solicitud de empleo digital capturada y validada en tablet.',
           autor: 'Reclutador en Campo CEPS',
         },
       ],
@@ -376,10 +376,10 @@ export const FieldInterviewWizard: React.FC<FieldInterviewWizardProps> = ({
             </div>
             <div>
               <h2 className="text-lg sm:text-xl font-black text-white tracking-wide">
-                Entrevista y Abordaje en Campo (Tablet)
+                Entrevista Inicial de Aspirantes (Móvil/Tablet)
               </h2>
               <p className="text-xs text-slate-300 font-medium">
-                Protocolo Operativo de 5 Etapas &bull; CEPS Paso del Norte
+                Filtro inicial de reclutamiento y validación documental
               </p>
             </div>
           </div>
@@ -1179,15 +1179,15 @@ export const FieldInterviewWizard: React.FC<FieldInterviewWizardProps> = ({
           )}
 
           {/* ========================================================================= */}
-          {/* PASO 4: SOLICITUD DE EMPLEO DIGITAL (SIN TACHADURAS)                      */}
+          {/* PASO 4: SOLICITUD DE EMPLEO DIGITAL                                       */}
           {/* ========================================================================= */}
           {paso === 4 && (
             <div className="space-y-6">
               <div className="bg-indigo-50 border-2 border-indigo-300 rounded-2xl p-4 text-xs text-indigo-950 font-medium">
                 <span className="font-extrabold text-indigo-900 text-sm block mb-1">
-                  Solicitud de Empleo Digital (Captura en Tablet sin Descarte de Hojas)
+                  Solicitud de Empleo Digital
                 </span>
-                Se desbloquea tras aprobar los filtros anteriores. Reemplaza la solicitud física a mano, eliminando el dolor de desechar formatos completos por tachaduras o borrones.
+                Se desbloquea tras aprobar los filtros anteriores. Captura estructurada de datos personales, historial laboral y referencias del aspirante.
               </div>
 
               <div className="bg-white p-5 rounded-2xl border-2 border-slate-300 space-y-4">

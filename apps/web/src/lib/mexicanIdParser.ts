@@ -24,13 +24,22 @@ export interface ExtractedCurpData {
   apellidoMaterno?: string
   nombreCompleto?: string
 
-  // Domicilio opcional (capturado en formulario)
+  // Domicilio Oficial SAT o Capturado
   domicilio?: {
+    calle?: string
+    tipoVialidad?: string
+    numeroExterior?: string
+    numeroInterior?: string
     calleNumero: string
     colonia: string
     codigoPostal: string
+    municipio?: string
     ciudad?: string
+    estado?: string
+    direccionCompleta?: string
   }
+  situacionFiscal?: string
+  regimenesFiscales?: string[]
   origenDocumento?: 'renapo_qr' | 'renapo_barcode' | 'sat_qr' | 'sat_directo' | 'manual'
 }
 
@@ -101,12 +110,31 @@ export function normalizarTextoEscaneado(rawText: string): string {
 }
 
 /**
+ * Corrige la inversión de 'Z' y 'Y' producida por lectores de código
+ * de barras configurados con emulación de teclado alemán (QWERTZ).
+ */
+export function corregirInversionYZ(cadena: string): string {
+  if (!cadena) return ''
+  return cadena
+    .split('')
+    .map((char) => {
+      if (char === 'Z') return 'Y'
+      if (char === 'z') return 'y'
+      if (char === 'Y') return 'Z'
+      if (char === 'y') return 'z'
+      return char
+    })
+    .join('')
+}
+
+/**
  * Extrae Nombre(s), Apellido Paterno y Apellido Materno a partir de:
  * 1. Formato estándar oficial de constancia RENAPO (delimitado por tuberías |):
- *    Ejemplo: RULG861230HCHZZS06||RUIZ|LOZANO|GUSTAVO ALONSO|HOMBRE|30/12/1986|CHIHUAHUA|08|
+ *    Ejemplo: HEPL800101HDFRRN01||HERNANDEZ|PEREZ|JORGE LUIS|HOMBRE|01/01/1980|CIUDAD DE MEXICO|09|
  * 2. Formato URL o Query Params (curp=...&primerApellido=...&segundoApellido=...&nombres=...)
  * 3. Formato JSON serializado en QR
- * 4. Formato multilínea o pares clave-valor
+ * 4. Formato OCR / MRZ de credencial para votar INE (ej: HERNANDEZ<<JORGE<LUIS)
+ * 5. Formato multilínea o pares clave-valor
  */
 export function extraerNombreDesdeTexto(rawText: string): {
   nombre: string
@@ -117,17 +145,18 @@ export function extraerNombreDesdeTexto(rawText: string): {
   if (!rawText) return null
   const text = rawText.trim()
 
-  // 1. Detección de formato oficial RENAPO delimitado por '|'
-  // Formato: CURP||PATERNO|MATERNO|NOMBRES|SEXO|FECHA_NAC|ENTIDAD|CLAVE|
-  // o: CURP|PATERNO|MATERNO|NOMBRES|...
-  if (text.includes('|')) {
-    const tokens = text.split('|').map((t) => t.trim())
+  // 1. Detección de formato oficial RENAPO / Escáner delimitado por ']' o '|'
+  // Formato: CURP]]PATERNO]MATERNO]NOMBRES]HOMBRE]30-12-1986]CHIHUAHUA]08]
+  // o formato: CURP||PATERNO|MATERNO|NOMBRES|SEXO|FECHA_NAC|ENTIDAD|CLAVE|
+  const delimitadorTokens = text.includes(']') ? ']' : text.includes('|') ? '|' : null
+  if (delimitadorTokens) {
+    const tokens = text.split(delimitadorTokens).map((t) => t.trim())
     const curpIndex = tokens.findIndex((t) =>
       /[A-Z]{4}\d{6}[HM][A-Z]{2}[B-DF-HJ-NP-TV-Z]{3}[A-Z\d]\d/.test(t)
     )
 
     if (curpIndex !== -1) {
-      // Tomamos los tokens posteriores a la CURP ignorando vacíos generados por '||'
+      // Tomamos los tokens posteriores a la CURP ignorando vacíos generados por ']]' o '||'
       const tokensDespues = tokens.slice(curpIndex + 1).filter(Boolean)
       if (tokensDespues.length >= 3) {
         const paterno = tokensDespues[0].toUpperCase()
@@ -143,7 +172,31 @@ export function extraerNombreDesdeTexto(rawText: string): {
     }
   }
 
-  // 2. Formato URL o Query Params (ej: ?curp=...&primerApellido=RUIZ&segundoApellido=LOZANO&nombres=GUSTAVO+ALONSO)
+  // 2. Formato MRZ del reverso de la Credencial INE (ej: PATERNO<<MATERNO<NOMBRES o PATERNO<MATERNO<<NOMBRES)
+  if (text.includes('<<') || text.includes('IDMEX')) {
+    const lineas = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+    // Usualmente la línea 3 contiene los nombres en el formato MRZ del INE
+    const lineaNombre = lineas.find((l) => l.includes('<<')) || lineas[lineas.length - 1]
+    if (lineaNombre) {
+      const partes = lineaNombre.split('<<').map((p) => p.replace(/<+/g, ' ').trim())
+      if (partes.length >= 2) {
+        const apellidos = partes[0].split(' ')
+        const pat = (apellidos[0] || '').toUpperCase()
+        const mat = (apellidos.slice(1).join(' ') || '').toUpperCase()
+        const nom = (partes[1] || '').toUpperCase()
+        if (pat && nom) {
+          return {
+            nombre: nom,
+            apellidoPaterno: pat,
+            apellidoMaterno: mat,
+            nombreCompleto: [nom, pat, mat].filter(Boolean).join(' '),
+          }
+        }
+      }
+    }
+  }
+
+  // 3. Formato URL o Query Params (ej: ?curp=...&primerApellido=HERNANDEZ&segundoApellido=PEREZ&nombres=JORGE+LUIS)
   if (
     text.includes('nombre=') ||
     text.includes('nombres=') ||
@@ -185,7 +238,7 @@ export function extraerNombreDesdeTexto(rawText: string): {
     }
   }
 
-  // 3. Detección de JSON (si el QR retorna un objeto serializado)
+  // 4. Detección de JSON (si el QR retorna un objeto serializado)
   if (text.startsWith('{') && text.endsWith('}')) {
     try {
       const obj = JSON.parse(text)
@@ -207,7 +260,7 @@ export function extraerNombreDesdeTexto(rawText: string): {
     }
   }
 
-  // 4. Formato delimitado con ';' o tabuladores
+  // 5. Formato delimitado con ';' o tabuladores
   const separadorAlt = text.includes(';') ? ';' : text.includes('\t') ? '\t' : null
   if (separadorAlt) {
     const partes = text.split(separadorAlt).map((p) => p.trim()).filter(Boolean)
@@ -269,20 +322,74 @@ export function parseCurp(rawText: string): ExtractedCurpData | null {
   // 4. Formatear fechas legibles
   const diaPad = String(dia).padStart(2, '0')
   const mesPad = String(mes).padStart(2, '0')
-  const fechaNacimiento = `${diaPad}/${mesPad}/${anioCompleto}`
-  const fechaIso = `${anioCompleto}-${mesPad}-${diaPad}`
+  let fechaNacimiento = `${diaPad}/${mesPad}/${anioCompleto}`
+  let fechaIso = `${anioCompleto}-${mesPad}-${diaPad}`
 
   // 5. Sexo
-  const sexo: 'Masculino' | 'Femenino' = sexoChar === 'H' ? 'Masculino' : 'Femenino'
+  let sexo: 'Masculino' | 'Femenino' = sexoChar === 'H' ? 'Masculino' : 'Femenino'
 
   // 6. Entidad Federativa
-  const nombreEntidad = ENTIDADES_FEDERATIVAS_MEXICO[entidadCode] || 'Entidad no especificada'
+  let nombreEntidad = ENTIDADES_FEDERATIVAS_MEXICO[entidadCode] || 'Entidad no especificada'
+  let claveEntidadFinal = entidadCode
 
   // 7. Prefijo RFC base (Primeras 10 posiciones)
   const rfcBase = curp.substring(0, 10)
 
   // 8. Extraer Nombre Oficial si viene estructurado en el texto
   const datosNombre = extraerNombreDesdeTexto(rawText)
+
+  // 9. Extraer demografía enriquecida si el escáner envió tokens delimitados (']' o '|')
+  const delimitadorTokens = rawText.includes(']') ? ']' : rawText.includes('|') ? '|' : null
+  if (delimitadorTokens) {
+    const tokens = rawText.split(delimitadorTokens).map((t) => t.trim())
+    const curpIndex = tokens.findIndex((t) => CURP_REGEX.test(t))
+    if (curpIndex !== -1) {
+      const tokensDespues = tokens.slice(curpIndex + 1).filter(Boolean)
+      // tokensDespues[0] = Paterno
+      // tokensDespues[1] = Materno
+      // tokensDespues[2] = Nombres
+      // tokensDespues[3] = Género (ej: HOMBRE / MUJER)
+      if (tokensDespues.length >= 4) {
+        const genRaw = tokensDespues[3].toUpperCase()
+        if (genRaw.includes('HOMB') || genRaw === 'H' || genRaw === 'MASCULINO') {
+          sexo = 'Masculino'
+        } else if (genRaw.includes('MUJ') || genRaw === 'M' || genRaw === 'FEMENINO') {
+          sexo = 'Femenino'
+        }
+      }
+
+      // tokensDespues[4] = Fecha Nacimiento explícita (ej: 30-12-1986 o 30/12/1986)
+      if (tokensDespues.length >= 5) {
+        const fechaRaw = tokensDespues[4]
+        const mFecha = fechaRaw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
+        if (mFecha) {
+          const d = mFecha[1].padStart(2, '0')
+          const mo = mFecha[2].padStart(2, '0')
+          const y = parseInt(mFecha[3], 10)
+          fechaNacimiento = `${d}/${mo}/${y}`
+          fechaIso = `${y}-${mo}-${d}`
+
+          let edadCalculada = hoy.getFullYear() - y
+          const ma = hoy.getMonth() + 1
+          const da = hoy.getDate()
+          if (ma < parseInt(mo, 10) || (ma === parseInt(mo, 10) && da < parseInt(d, 10))) {
+            edadCalculada--
+          }
+          edad = Math.max(0, edadCalculada)
+        }
+      }
+
+      // tokensDespues[5] = Estado de nacimiento (ej: CHIHUAHUA)
+      if (tokensDespues.length >= 6 && tokensDespues[5]) {
+        nombreEntidad = tokensDespues[5].toUpperCase()
+      }
+
+      // tokensDespues[6] = Clave de estado (ej: 08)
+      if (tokensDespues.length >= 7 && tokensDespues[6]) {
+        claveEntidadFinal = tokensDespues[6].toUpperCase()
+      }
+    }
+  }
 
   return {
     curp,
@@ -291,14 +398,18 @@ export function parseCurp(rawText: string): ExtractedCurpData | null {
     fechaIso,
     edad: Math.max(0, edad),
     sexo,
-    claveEntidad: entidadCode,
+    claveEntidad: claveEntidadFinal,
     nombreEntidad,
     rfcBase,
     nombre: datosNombre?.nombre,
     apellidoPaterno: datosNombre?.apellidoPaterno,
     apellidoMaterno: datosNombre?.apellidoMaterno,
     nombreCompleto: datosNombre?.nombreCompleto,
-    origenDocumento: rawText.includes('|') ? 'renapo_qr' : 'renapo_barcode',
+    origenDocumento: rawText.includes(']')
+      ? 'renapo_barcode'
+      : rawText.includes('|')
+      ? 'renapo_qr'
+      : 'renapo_barcode',
   }
 }
 
@@ -308,6 +419,7 @@ export function parseCurp(rawText: string): ExtractedCurpData | null {
 export function parseSatQr(rawText: string): {
   rfc: string
   homoclave: string
+  urlSat?: string
   nombre?: string
   apellidoPaterno?: string
   apellidoMaterno?: string
@@ -316,7 +428,20 @@ export function parseSatQr(rawText: string): {
   if (!rawText) return null
   const cleaned = rawText.trim()
 
-  // 1. Cadena de RFC directa de 13 posiciones (ej: RULG8612307C5)
+  // 1. Cadena de URL oficial del SAT (Validador QR de CIF)
+  if (cleaned.includes('siat.sat.gob.mx') || cleaned.includes('validadorqr.jsf')) {
+    const matchD3 = cleaned.match(/_([A-Z&Ñ]{4}\d{6}[A-Z0-9]{3})/i)
+    if (matchD3) {
+      const rfc = matchD3[1].toUpperCase()
+      return {
+        rfc,
+        homoclave: rfc.substring(10, 13),
+        urlSat: cleaned,
+      }
+    }
+  }
+
+  // 2. Cadena de RFC directa de 13 posiciones (ej: HEPL8001017C5 o código de barras 1D)
   if (RFC_REGEX.test(cleaned.toUpperCase())) {
     const rfc = cleaned.toUpperCase()
     return {
@@ -325,7 +450,7 @@ export function parseSatQr(rawText: string): {
     }
   }
 
-  // 2. Buscar RFC de 13 dígitos dentro de texto o URL del SAT
+  // 3. Buscar RFC de 13 caracteres dentro de cualquier texto escaneado
   const matchRfc = cleaned.match(/[A-Z&Ñ]{4}\d{6}[A-Z0-9]{3}/i)
   if (matchRfc) {
     const rfc = matchRfc[0].toUpperCase()

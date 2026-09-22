@@ -119,7 +119,7 @@ export const useCandidateStore = create<CandidateStoreState>()(
   persist(
     (set, get) => ({
       pasoActual: 1,
-      formData: datosDemo,
+      formData: formularioVacio,
       folioAsignado: null,
       guardando: false,
 
@@ -139,33 +139,29 @@ export const useCandidateStore = create<CandidateStoreState>()(
       setDatosExtraidosCurp: (datos) => set({ datosExtraidosCurp: datos }),
 
       confirmarAbordajeEscaneo: (datos, esReingreso = false) =>
-        set((state) => ({
+        set(() => ({
           curpVerificada: true,
           datosExtraidosCurp: datos,
           esReingreso,
           mostrarGateEscaneo: false,
           pasoActual: 1,
           formData: {
-            ...state.formData,
-            nombre: datos.nombre || state.formData.nombre,
-            apellidoPaterno: datos.apellidoPaterno || state.formData.apellidoPaterno,
-            apellidoMaterno: datos.apellidoMaterno || state.formData.apellidoMaterno,
+            ...formularioVacio,
+            nombre: datos.nombre || '',
+            apellidoPaterno: datos.apellidoPaterno || '',
+            apellidoMaterno: datos.apellidoMaterno || '',
             curp: datos.curp,
             edad: String(datos.edad),
             sexo: datos.sexo,
-            rfc:
-              datos.rfcCompleto ||
-              (state.formData.rfc && state.formData.rfc.startsWith(datos.rfcBase)
-                ? state.formData.rfc
-                : datos.rfcBase),
+            rfc: datos.rfcCompleto || datos.rfcBase,
             domicilio: datos.domicilio
               ? {
-                  ...state.formData.domicilio,
-                  calleNumero: datos.domicilio.calleNumero || state.formData.domicilio.calleNumero,
-                  colonia: datos.domicilio.colonia || state.formData.domicilio.colonia,
-                  codigoPostal: datos.domicilio.codigoPostal || state.formData.domicilio.codigoPostal,
+                  ...formularioVacio.domicilio,
+                  calleNumero: datos.domicilio.calleNumero || '',
+                  colonia: datos.domicilio.colonia || '',
+                  codigoPostal: datos.domicilio.codigoPostal || '',
                 }
-              : state.formData.domicilio,
+              : formularioVacio.domicilio,
           },
         })),
 

@@ -398,15 +398,15 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
                 <div>
                   <h2 className="text-base sm:text-lg font-extrabold text-[#0A162B]">
                     {pasoActual === 1 && '1. Datos Personales & Contacto'}
-                    {pasoActual === 2 && '2. Puesto & Módulo de Abordaje'}
-                    {pasoActual === 3 && '3. Domicilio & Croquis Digital'}
+                    {pasoActual === 2 && '2. Puesto & Módulo de Captación'}
+                    {pasoActual === 3 && '3. Domicilio & Ubicación Geográfica'}
                     {pasoActual === 4 && '4. Fotografías de Documentos'}
                     {pasoActual === 5 && '5. Checkpoint de Revisión Final'}
                   </h2>
                   <p className="text-xs font-semibold text-slate-600 mt-0.5">
                     {pasoActual === 1 && 'Captura la información oficial para el expediente del aspirante.'}
-                    {pasoActual === 2 && 'Indica la vacante, el módulo de reclutamiento y la disponibilidad.'}
-                    {pasoActual === 3 && 'Ubica el domicilio con el pin interactivo sustituyendo el croquis a mano.'}
+                    {pasoActual === 2 && 'Indica la vacante deseada, el punto de captación y la disponibilidad de turno.'}
+                    {pasoActual === 3 && 'Ubica el domicilio del aspirante con el mapa interactivo y confirma la dirección.'}
                     {pasoActual === 4 && 'Adjunta fotografías de INE, RFC y antecedentes penales.'}
                     {pasoActual === 5 && 'Mecanismo de seguridad: confirma la veracidad antes de persistir.'}
                   </p>
@@ -816,10 +816,23 @@ export const CandidateRegistrationView: React.FC<CandidateRegistrationViewProps>
 
               {/* PASO 3 */}
               {pasoActual === 3 && (
-                <LocationPicker
-                  valor={formData.domicilio}
-                  onChange={(nuevoDomicilio) => actualizarDomicilio(nuevoDomicilio)}
-                />
+                <div className="flex flex-col gap-4">
+                  {datosExtraidosCurp?.domicilio && (
+                    <div className="p-3.5 bg-emerald-50 border-2 border-emerald-300 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-emerald-950 font-bold shadow-2xs">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                        <span>Domicilio fiscal oficial precargado desde tu Cédula del SAT. Puedes afinar la ubicación exacta en el mapa interactivo.</span>
+                      </div>
+                      <span className="text-[10px] uppercase bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded font-black whitespace-nowrap self-start sm:self-center">
+                        ✓ SAT Verificado
+                      </span>
+                    </div>
+                  )}
+                  <LocationPicker
+                    valor={formData.domicilio}
+                    onChange={(nuevoDomicilio) => actualizarDomicilio(nuevoDomicilio)}
+                  />
+                </div>
               )}
 
               {/* PASO 4 */}

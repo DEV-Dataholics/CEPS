@@ -13,6 +13,7 @@ import type { ExtractedCurpData } from './mexicanIdParser'
 
 export type EstadoDuplicidad =
   | 'limpio'
+  | 'no_contratable'
   | 'duplicado_curp'
   | 'posible_reingreso'
   | 'homonimo'
@@ -82,6 +83,40 @@ export function verificarDuplicidadAspirante(
     )
 
     if (coincidenciaCurp) {
+      // 1.1 Veto Administrativo: Candidato Sin Posibilidad de Aplicación
+      if (coincidenciaCurp.noContratable) {
+        const nombreCoincidente = [
+          coincidenciaCurp.nombre,
+          coincidenciaCurp.apellidoPaterno,
+          coincidenciaCurp.apellidoMaterno,
+        ]
+          .filter(Boolean)
+          .join(' ')
+
+        return {
+          estado: 'no_contratable',
+          nivelAlerta: 'rojo',
+          bloqueante: true,
+          esDuplicadoCurp: true,
+          esHomonimo: false,
+          titulo: '🚫 CANDIDATO SIN POSIBILIDAD DE APLICACIÓN',
+          mensaje:
+            'Este aspirante se encuentra marcado en la base de datos como NO CONTRATABLE por la Administración General.',
+          folioPrevio: coincidenciaCurp.folio,
+          folioExistente: coincidenciaCurp.folio,
+          nombreExistente: nombreCoincidente,
+          coincidencia: coincidenciaCurp,
+          detalles: [
+            `Folio Registrado: ${coincidenciaCurp.folio}`,
+            `Aspirante: ${nombreCoincidente}`,
+            `Criterio: VETO ADMINISTRATIVO OPERATIVO ("NO CONTRATABLE")`,
+            `Motivo Registrado: ${coincidenciaCurp.motivoNoContratable || 'Restricción administrativa registrada por Dirección/RH'}`,
+            `Fecha de Veto: ${coincidenciaCurp.fechaNoContratable || 'Vigente'}`,
+            'Instrucción en Campo: NO continuar con el proceso de registro ni captura de vacante.',
+          ],
+        }
+      }
+
       const esReingreso =
         coincidenciaCurp.estatus === 'asignado' ||
         coincidenciaCurp.estatus === 'en_espera'

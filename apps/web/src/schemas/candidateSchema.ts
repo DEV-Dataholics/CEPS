@@ -58,7 +58,7 @@ export const candidateStep4Schema = z.object({
 // Paso 5: Declaración de Veracidad
 export const candidateStep5Schema = z.object({
   confirmoVeracidad: z.literal(true, {
-    errorMap: () => ({ message: 'Debes confirmar bajo protesta de decir verdad que los datos son verídicos' }),
+    message: 'Debes confirmar bajo protesta de decir verdad que los datos son verídicos',
   }),
 })
 

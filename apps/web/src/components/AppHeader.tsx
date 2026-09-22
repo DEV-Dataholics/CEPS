@@ -33,43 +33,48 @@ export const AppHeader: React.FC<AppHeaderProps> = ({ vistaActual }) => {
     { titulo: string; descripcion: string; icon: React.FC<{ className?: string }> }
   > = {
     gestion_candidatos: {
-      titulo: 'Gestión y Evaluación de Candidatos',
-      descripcion: 'Paso 2 &bull; Selección oficial, exámenes psicotécnicos, integridad y alta',
+      titulo: 'Gestión de Candidatos',
+      descripcion: 'Evaluación de perfiles, aplicación de filtros psicotécnicos y dictamen de contratación',
       icon: UserCheck,
     },
     dossiers: {
-      titulo: 'Expedientes y Dossiers de Guardias',
-      descripcion: 'Archivo clasificado &bull; Auditoría de integridad y antecedentes',
+      titulo: 'Expedientes de Personal',
+      descripcion: 'Dossiers operativos, historial laboral y auditoría documental',
       icon: FolderArchive,
     },
     vacantes: {
       titulo: 'Gestor de Vacantes Operativas',
-      descripcion: 'Cobertura de plazas por maquiladora &bull; Asignación y rol 12x12',
+      descripcion: 'Administración de plazas por servicio maquilador, asignaciones y turnos',
       icon: Briefcase,
     },
     catalogos: {
       titulo: 'Catálogos del Sistema',
-      descripcion: 'Clientes, plantas maquiladoras, turnos y tabuladores salariales',
+      descripcion: 'Clientes, plantas operativas, turnos y tabuladores salariales',
       icon: SlidersHorizontal,
     },
     candidato: {
-      titulo: 'Portal del Candidato',
-      descripcion: 'Solicitud digital de empleo &bull; Abordaje sin tachaduras',
+      titulo: 'Registro de Aspirantes',
+      descripcion: 'Captura de solicitud inicial y prefiltro operativo',
       icon: UserPlus,
     },
+    examen_tablet: {
+      titulo: 'Módulo de Evaluación Táctil',
+      descripcion: 'Aplicación digital de pruebas psicotécnicas y de integridad',
+      icon: UserCheck,
+    },
     tracking: {
-      titulo: 'Consulta de Estatus por Folio',
-      descripcion: 'Seguimiento oficial de trámites &bull; CEPS-2026-XXXX',
+      titulo: 'Consulta de Estatus',
+      descripcion: 'Seguimiento y trazabilidad de solicitudes mediante folio',
       icon: Search,
     },
     diagnostico: {
-      titulo: 'Diagnóstico de Backend (CodeIgniter 4)',
-      descripcion: 'Estado de API y base de datos en Laragon',
+      titulo: 'Diagnóstico del Backend',
+      descripcion: 'Monitoreo del estado de la API y conexión a base de datos',
       icon: Server,
     },
     uikit: {
       titulo: 'Guía de Componentes y Diseño',
-      descripcion: 'Catálogo de estilos e identidad visual CEPS',
+      descripcion: 'Catálogo de estilos, patrones y sistema de diseño CEPS',
       icon: LayoutDashboard,
     },
   }

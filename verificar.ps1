@@ -9,7 +9,7 @@ Write-Host "=================================================="
 Write-Host ">>> 1. Frontend: Typecheck (tsc --noEmit)"
 Write-Host "=================================================="
 Set-Location $Web
-npx tsc --noEmit
+npx tsc --noEmit -p tsconfig.app.json
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[FAIL] Frontend Typecheck fallo" -ForegroundColor Red
     $Fallas++

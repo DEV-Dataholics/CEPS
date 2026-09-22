@@ -159,7 +159,7 @@ export const GuardDossiersView: React.FC = () => {
                 onChange={(e) => setFiltroModulo(e.target.value)}
                 className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 outline-none"
               >
-                <option value="todos">Todos los puntos de abordaje</option>
+                <option value="todos">Todos los módulos de captación</option>
                 {modulosDisponibles.map((m) => (
                   <option key={m} value={m}>
                     {m}

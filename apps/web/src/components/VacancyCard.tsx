@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronUp,
   DollarSign,
+  ShieldAlert,
 } from 'lucide-react'
 import { type Vacante, type AspiranteSolicitud, useVacancyStore } from '../store/vacancyStore'
 
@@ -27,7 +28,10 @@ export const VacancyCard: React.FC<VacancyCardProps> = ({
   onAsignarCandidatoActivo,
 }) => {
   const [expandirAsignados, setExpandirAsignados] = useState(false)
-  const { desasignarAspirante } = useVacancyStore()
+  const [aspiranteParaBaja, setAspiranteParaBaja] = useState<AspiranteSolicitud | null>(null)
+  const [motivoBaja, setMotivoBaja] = useState('')
+  const [marcarVetado, setMarcarVetado] = useState(false)
+  const { desasignarAspirante, darDeBajaEmpleado } = useVacancyStore()
 
   const plazasCubiertas = aspirantesAsignados.length
   const porcentaje = Math.min(Math.round((plazasCubiertas / vacante.plazasTotales) * 100), 100)
@@ -164,18 +168,129 @@ export const VacancyCard: React.FC<VacancyCardProps> = ({
                         </div>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => desasignarAspirante(asp.id)}
-                      title="Quitar de esta vacante y regresar a nuevas solicitudes"
-                      className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 hover:border-red-200 border border-transparent transition"
-                    >
-                      <UserX className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAspiranteParaBaja(asp)
+                          setMotivoBaja('')
+                          setMarcarVetado(false)
+                        }}
+                        title="Procesar Baja de Empleado (Cascading Offboarding: libera vacante inmediatamente)"
+                        className="px-2 py-1 rounded-lg text-[10px] font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 transition flex items-center gap-1"
+                      >
+                        <ShieldAlert className="w-3 h-3 text-red-600" />
+                        <span>Baja</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => desasignarAspirante(asp.id)}
+                        title="Reasignar (quitar de esta vacante sin dar de baja)"
+                        className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                      >
+                        <UserX className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* MODAL DE BAJA DE EMPLEADO (CASCADING OFFBOARDING) */}
+        {aspiranteParaBaja && (
+          <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white max-w-md w-full rounded-2xl border-2 border-red-500 shadow-2xl p-6 space-y-4">
+              <div className="flex items-center gap-3 border-b border-slate-200 pb-3">
+                <div className="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center">
+                  <ShieldAlert className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-[#0A162B]">Baja Operativa de Guardia</h3>
+                  <p className="text-xs text-slate-600 font-semibold">
+                    {vacante.empresa} &bull; {vacante.planta}
+                  </p>
+                </div>
+              </div>
+
+              <div className="text-xs text-slate-700 space-y-3">
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-bold">Empleado / Folio:</span>
+                    <span className="font-mono font-black text-[#0A162B]">{aspiranteParaBaja.folio}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-bold">Nombre:</span>
+                    <span className="font-extrabold text-slate-900">
+                      {aspiranteParaBaja.nombre} {aspiranteParaBaja.apellidoPaterno}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 font-bold">Turno asignado:</span>
+                    <span className="text-slate-800">{vacante.turno}</span>
+                  </div>
+                </div>
+
+                <div className="p-2.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-[11px] font-semibold">
+                  ⚡ <strong>Cascading Offboarding:</strong> Al procesar la baja, el guardia quedará automáticamente desasignado de la empresa y la vacante se reabrirá de inmediato en el sistema para reemplazo de personal.
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                    Motivo Oficial de la Baja *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={motivoBaja}
+                    onChange={(e) => setMotivoBaja(e.target.value)}
+                    placeholder="Ej: Renuncia voluntaria / Faltas injustificadas / Abandono de servicio"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 outline-none focus:border-red-500"
+                  />
+                </div>
+
+                <label className="flex items-start gap-2.5 p-3 bg-red-50/70 border border-red-200 rounded-xl cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={marcarVetado}
+                    onChange={(e) => setMarcarVetado(e.target.checked)}
+                    className="w-4 h-4 mt-0.5 accent-red-600 rounded cursor-pointer"
+                  />
+                  <div className="text-xs text-red-950 font-bold">
+                    <span>Marcar como NO CONTRATABLE (Veto Administrativo)</span>
+                    <p className="text-[10px] text-red-700 font-normal mt-0.5">
+                      Bloqueará de inmediato al reclutador en campo si intenta volver a registrarse con su CURP.
+                    </p>
+                  </div>
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setAspiranteParaBaja(null)}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!motivoBaja.trim()) {
+                      alert('Por favor capture el motivo de la baja.')
+                      return
+                    }
+                    darDeBajaEmpleado(aspiranteParaBaja.id, motivoBaja.trim(), marcarVetado)
+                    setAspiranteParaBaja(null)
+                  }}
+                  className="px-4 py-2 text-xs font-black bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-md cursor-pointer"
+                >
+                  Confirmar Baja y Reabrir Vacante
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

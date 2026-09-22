@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { UiKitDemo } from './pages/UiKitDemo'
 import { CandidateRegistrationView } from './pages/CandidateRegistrationView'
 import { VacancyManagerView } from './pages/VacancyManagerView'
@@ -6,6 +6,7 @@ import { CandidateStatusTrackingView } from './pages/CandidateStatusTrackingView
 import { CatalogManagerView } from './pages/CatalogManagerView'
 import { GuardDossiersView } from './pages/GuardDossiersView'
 import { CandidateManagementView } from './pages/CandidateManagementView'
+import { CandidateExamTabletView } from './pages/CandidateExamTabletView'
 import { AppSidebar } from './components/AppSidebar'
 import { AppHeader } from './components/AppHeader'
 import { FieldInterviewWizard } from './components/FieldInterviewWizard'
@@ -74,6 +75,8 @@ export default function App() {
             <GuardDossiersView />
           ) : vistaEfectiva === 'candidato' ? (
             <CandidateRegistrationView onConsultarEstatus={() => setVista('tracking')} />
+          ) : vistaEfectiva === 'examen_tablet' ? (
+            <CandidateExamTabletView onFinalizar={() => setVista('tracking')} />
           ) : vistaEfectiva === 'tracking' ? (
             <CandidateStatusTrackingView />
           ) : vistaEfectiva === 'catalogos' ? (
@@ -114,9 +117,9 @@ export default function App() {
                     <div className="p-5 bg-amber-50 border-2 border-amber-300 rounded-xl text-sm text-amber-950 flex items-start gap-3.5">
                       <AlertCircle className="w-6 h-6 text-amber-700 flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="font-extrabold text-base">Backend local no conectado en puerto 8080</p>
+                        <p className="font-extrabold text-base">Backend local no conectado en puerto 8085</p>
                         <p className="text-amber-800 mt-1 font-medium">
-                          Ejecuta <code>php spark serve</code> dentro de <code>apps/api</code> o verifica Laragon.
+                          Ejecuta <code>php spark serve --port 8085</code> dentro de <code>apps/api</code> o verifica Laragon.
                         </p>
                         <p className="text-slate-600 mt-1.5 font-mono text-xs font-semibold">{error}</p>
                       </div>
